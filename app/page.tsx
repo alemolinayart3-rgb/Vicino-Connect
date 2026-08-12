@@ -25,6 +25,9 @@ function Mark({ compact = false }: { compact?: boolean }) {
 
 function Login({ onNext }: { onNext: (role: Role, isNewAccount?: boolean) => void }) {
   const [role, setRole] = useState<Role>("Paciente");
+  const demoEmails: Record<Role,string> = {Paciente:'ana@ejemplo.com',Psicólogo:'laura@vicino.mx',Psiquiatra:'diego@vicino.mx'};
+  const [email, setEmail] = useState(demoEmails.Paciente);
+  const selectRole = (nextRole: Role) => { setRole(nextRole); setEmail(demoEmails[nextRole]); };
   return (
     <main className="auth-shell">
       <section className="welcome-panel">
@@ -44,10 +47,10 @@ function Login({ onNext }: { onNext: (role: Role, isNewAccount?: boolean) => voi
           <p className="muted">Ingresa para continuar con tu proceso.</p>
           <div className="role-picker" aria-label="Selecciona tu perfil">
             {(['Paciente','Psicólogo','Psiquiatra'] as Role[]).map(item => (
-              <button key={item} className={role === item ? 'selected' : ''} onClick={() => setRole(item)}>{item}</button>
+              <button key={item} className={role === item ? 'selected' : ''} onClick={() => selectRole(item)}>{item}</button>
             ))}
           </div>
-          <label>Correo electrónico<input defaultValue="ana@ejemplo.com" type="email" /></label>
+          <label>Correo electrónico<input value={email} onChange={e=>setEmail(e.target.value)} type="email" /></label>
           <label>Contraseña<div className="password"><input defaultValue="vicinoconnect" type="password" /><span>○</span></div></label>
           <div className="login-meta"><label className="remember"><input type="checkbox" defaultChecked /> Recordarme</label><button>Olvidé mi contraseña</button></div>
           <button className="primary" onClick={() => onNext(role, false)}>Continuar <span>→</span></button>
