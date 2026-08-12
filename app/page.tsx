@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type Screen = "login" | "onboarding" | "app";
 type Tab = "Inicio" | "Proceso" | "Equipo" | "Mensajes" | "Perfil";
@@ -165,6 +165,15 @@ function Profile({ role, onLogout }: { role: Role; onLogout: () => void }) {
   const [editing, setEditing] = useState(false);
   const [activeSetting, setActiveSetting] = useState<string | null>(null);
   const [notifications, setNotifications] = useState({messages:true,appointments:true,email:false});
+  const [notificationsLoaded, setNotificationsLoaded] = useState(false);
+  useEffect(() => {
+    const saved = window.localStorage.getItem('vicino_notification_preferences');
+    if (saved) setNotifications(JSON.parse(saved));
+    setNotificationsLoaded(true);
+  }, []);
+  useEffect(() => {
+    if (notificationsLoaded) window.localStorage.setItem('vicino_notification_preferences', JSON.stringify(notifications));
+  }, [notifications, notificationsLoaded]);
   const data = role==='Paciente'?{initial:'AR',name:'Ana Rodríguez',subtitle:'Paciente desde julio de 2026',license:'',color:'',items:['Información personal','Privacidad y seguridad','Notificaciones','Ayuda y acompañamiento']}:role==='Psicólogo'?{initial:'LM',name:'Laura Méndez',subtitle:'Psicóloga clínica',license:'Cédula profesional · 12345678',color:'sage',items:['Información profesional','Disponibilidad y agenda','Privacidad y seguridad','Notificaciones']}: {initial:'DR',name:'Dr. Diego Ríos',subtitle:'Psiquiatra',license:'Cédula profesional · 87654321',color:'blue',items:['Información profesional','Disponibilidad y agenda','Seguridad clínica','Notificaciones']};
   const settingContent = () => {
     if(activeSetting?.includes('Información')) return <><p className="eyebrow">INFORMACIÓN PROFESIONAL</p><h2>Datos de tu práctica</h2><label className="edit-field">Nombre profesional<input defaultValue={data.name}/></label><label className="edit-field">Especialidad<input defaultValue={role==='Psicólogo'?'Psicología clínica':'Psiquiatría de adultos'}/></label>{data.license&&<label className="edit-field">Cédula profesional<input defaultValue={data.license.replace('Cédula profesional · ','')}/></label>}<label className="edit-field">Descripción<textarea defaultValue={role==='Psicólogo'?'Acompañamiento en ansiedad y regulación emocional.':'Seguimiento psiquiátrico integral y farmacológico.'}/></label><button className="primary" onClick={()=>setActiveSetting(null)}>Guardar información</button></>;
