@@ -23,7 +23,7 @@ function Mark({ compact = false }: { compact?: boolean }) {
   );
 }
 
-function Login({ onNext }: { onNext: (role: Role) => void }) {
+function Login({ onNext }: { onNext: (role: Role, isNewAccount?: boolean) => void }) {
   const [role, setRole] = useState<Role>("Paciente");
   return (
     <main className="auth-shell">
@@ -50,8 +50,8 @@ function Login({ onNext }: { onNext: (role: Role) => void }) {
           <label>Correo electrónico<input defaultValue="ana@ejemplo.com" type="email" /></label>
           <label>Contraseña<div className="password"><input defaultValue="vicinoconnect" type="password" /><span>○</span></div></label>
           <div className="login-meta"><label className="remember"><input type="checkbox" defaultChecked /> Recordarme</label><button>Olvidé mi contraseña</button></div>
-          <button className="primary" onClick={() => onNext(role)}>Continuar <span>→</span></button>
-          <p className="signup">¿Es tu primera vez? <button onClick={() => onNext(role)}>Crear una cuenta</button></p>
+          <button className="primary" onClick={() => onNext(role, false)}>Continuar <span>→</span></button>
+          <p className="signup">¿Es tu primera vez? <button onClick={() => onNext(role, true)}>Crear una cuenta</button></p>
         </div>
         <p className="legal">Al continuar aceptas nuestros Términos y Aviso de privacidad.</p>
       </section>
@@ -180,6 +180,7 @@ function Dashboard({ onLogout, initialRole }: { onLogout: () => void; initialRol
 export default function App() {
   const [screen, setScreen] = useState<Screen>('login');
   const [role, setRole] = useState<Role>('Paciente');
-  const login = (nextRole: Role) => { setRole(nextRole); setScreen('onboarding'); };
-  return screen === 'login' ? <Login onNext={login}/> : screen === 'onboarding' ? <Onboarding onDone={()=>setScreen('app')}/> : <Dashboard initialRole={role} onLogout={()=>setScreen('login')}/>;
+  const login = (nextRole: Role, isNewAccount = false) => { setRole(nextRole); const seen = window.localStorage.getItem('vicino_onboarding_seen_v02') === 'true'; setScreen(isNewAccount || !seen ? 'onboarding' : 'app'); };
+  const finishOnboarding = () => { window.localStorage.setItem('vicino_onboarding_seen_v02','true'); setScreen('app'); };
+  return screen === 'login' ? <Login onNext={login}/> : screen === 'onboarding' ? <Onboarding onDone={finishOnboarding}/> : <Dashboard initialRole={role} onLogout={()=>setScreen('login')}/>;
 }
