@@ -166,6 +166,7 @@ function Profile({ role, onLogout }: { role: Role; onLogout: () => void }) {
   const [activeSetting, setActiveSetting] = useState<string | null>(null);
   const [notifications, setNotifications] = useState({messages:true,appointments:true,email:false});
   const [notificationsLoaded, setNotificationsLoaded] = useState(false);
+  const [profileOverrides, setProfileOverrides] = useState<Record<string,{name?:string;license?:string}>>({});
   useEffect(() => {
     const saved = window.localStorage.getItem('vicino_notification_preferences');
     if (saved) setNotifications(JSON.parse(saved));
@@ -174,7 +175,28 @@ function Profile({ role, onLogout }: { role: Role; onLogout: () => void }) {
   useEffect(() => {
     if (notificationsLoaded) window.localStorage.setItem('vicino_notification_preferences', JSON.stringify(notifications));
   }, [notifications, notificationsLoaded]);
-  const data = role==='Paciente'?{initial:'AR',name:'Ana Rodríguez',subtitle:'Paciente desde julio de 2026',license:'',color:'',items:['Información personal','Privacidad y seguridad','Notificaciones','Ayuda y acompañamiento']}:role==='Psicólogo'?{initial:'LM',name:'Laura Méndez',subtitle:'Psicóloga clínica',license:'Cédula profesional · 12345678',color:'sage',items:['Información profesional','Disponibilidad y agenda','Privacidad y seguridad','Notificaciones']}: {initial:'DR',name:'Dr. Diego Ríos',subtitle:'Psiquiatra',license:'Cédula profesional · 87654321',color:'blue',items:['Información profesional','Disponibilidad y agenda','Seguridad clínica','Notificaciones']};
+  useEffect(() => {
+    const saved = window.localStorage.getItem('vicino_profile_overrides');
+    if (saved) setProfileOverrides(JSON.parse(saved));
+  }, []);
+  useEffect(() => {
+    const captureSave = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      const button = target.closest('button');
+      if (!button || button.textContent?.trim() !== 'Guardar cambios') return;
+      const modal = button.closest('.modal');
+      const inputs = modal?.querySelectorAll<HTMLInputElement>('input');
+      if (!inputs?.length) return;
+      const next = {...profileOverrides,[role]:{name:inputs[0]?.value.trim(),license:inputs.length>2?inputs[2]?.value.trim():''}};
+      setProfileOverrides(next);
+      window.localStorage.setItem('vicino_profile_overrides',JSON.stringify(next));
+    };
+    document.addEventListener('click',captureSave,true);
+    return () => document.removeEventListener('click',captureSave,true);
+  }, [profileOverrides, role]);
+  const baseData = role==='Paciente'?{initial:'AR',name:'Ana Rodríguez',subtitle:'Paciente desde julio de 2026',license:'',color:'',items:['Información personal','Privacidad y seguridad','Notificaciones','Ayuda y acompañamiento']}:role==='Psicólogo'?{initial:'LM',name:'Laura Méndez',subtitle:'Psicóloga clínica',license:'Cédula profesional · 12345678',color:'sage',items:['Información profesional','Disponibilidad y agenda','Privacidad y seguridad','Notificaciones']}: {initial:'DR',name:'Dr. Diego Ríos',subtitle:'Psiquiatra',license:'Cédula profesional · 87654321',color:'blue',items:['Información profesional','Disponibilidad y agenda','Seguridad clínica','Notificaciones']};
+  const override = profileOverrides[role] || {};
+  const data = {...baseData,name:override.name||baseData.name,license:override.license?`Cédula profesional · ${override.license}`:baseData.license};
   const settingContent = () => {
     if(activeSetting?.includes('Información')) return <><p className="eyebrow">INFORMACIÓN PROFESIONAL</p><h2>Datos de tu práctica</h2><label className="edit-field">Nombre profesional<input defaultValue={data.name}/></label><label className="edit-field">Especialidad<input defaultValue={role==='Psicólogo'?'Psicología clínica':'Psiquiatría de adultos'}/></label>{data.license&&<label className="edit-field">Cédula profesional<input defaultValue={data.license.replace('Cédula profesional · ','')}/></label>}<label className="edit-field">Descripción<textarea defaultValue={role==='Psicólogo'?'Acompañamiento en ansiedad y regulación emocional.':'Seguimiento psiquiátrico integral y farmacológico.'}/></label><button className="primary" onClick={()=>setActiveSetting(null)}>Guardar información</button></>;
     if(activeSetting?.includes('Disponibilidad')) return <><p className="eyebrow">AGENDA PROFESIONAL</p><h2>Disponibilidad semanal</h2><div className="availability-list">{['Lunes','Martes','Miércoles','Jueves','Viernes'].map((day,i)=><label key={day}><input type="checkbox" defaultChecked={i<4}/><strong>{day}</strong><span>{i<4?'9:00 AM – 5:00 PM':'No disponible'}</span></label>)}</div><button className="primary" onClick={()=>setActiveSetting(null)}>Guardar disponibilidad</button></>;
