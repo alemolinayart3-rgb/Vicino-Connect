@@ -17,7 +17,7 @@ const tabs: { name: Tab; icon: string }[] = [
 function Mark({ compact = false }: { compact?: boolean }) {
   return (
     <div className={`brand ${compact ? "compact" : ""}`} aria-label="Vicino Connect">
-      <span className="mark" aria-hidden="true"><i></i><b></b></span>
+      <span className="mark" aria-hidden="true"><img src="/vicino-brand-original.png" alt="" /></span>
       <span><strong>vicino</strong><small>connect</small></span>
     </div>
   );
