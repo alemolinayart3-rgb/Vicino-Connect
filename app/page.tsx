@@ -257,12 +257,21 @@ function Dashboard({ onLogout, initialRole }: { onLogout: () => void; initialRol
   const [selectedChat, setSelectedChat] = useState('laura');
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notificationsRead, setNotificationsRead] = useState(false);
+  const [supportVisible, setSupportVisible] = useState(true);
+  useEffect(() => {
+    const seen = window.localStorage.getItem('vicino_support_seen') === 'true';
+    setSupportVisible(!seen);
+    if (seen) document.querySelector<HTMLElement>('.support')?.setAttribute('hidden','');
+  }, []);
   const changeRole = (next: Role) => { setRole(next); setTab('Inicio'); };
   const openMessage = (chatId: string) => { setSelectedChat(chatId); setTab('Mensajes'); };
   useEffect(() => {
     const handleContact = (event: MouseEvent) => {
       const button = (event.target as HTMLElement).closest('button');
       if (button?.textContent?.trim() !== 'Contactar') return;
+      setSupportVisible(false);
+      window.localStorage.setItem('vicino_support_seen','true');
+      button.closest<HTMLElement>('.support')?.setAttribute('hidden','');
       setSelectedChat('laura');
       setTab('Mensajes');
       window.setTimeout(() => document.querySelector<HTMLInputElement>('.chat footer input')?.focus(), 60);
