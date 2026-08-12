@@ -85,17 +85,25 @@ function Onboarding({ onDone }: { onDone: () => void }) {
 
 function Home({ onMessage }: { onMessage: () => void }) {
   const [sessionOpen, setSessionOpen] = useState(false);
+  const [scheduleStep, setScheduleStep] = useState<'details'|'calendar'|'confirmed'>('details');
+  const [session, setSession] = useState({day:18,time:'10:00 AM'});
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [selectedTime, setSelectedTime] = useState('');
   const [breathing, setBreathing] = useState(false);
+  const openDetails = () => { setScheduleStep('details'); setSessionOpen(true); };
+  const confirmSchedule = () => { if(selectedDay&&selectedTime){setSession({day:selectedDay,time:selectedTime});setScheduleStep('confirmed')} };
+  const availableDays = [19,20,24,25,27,31];
+  const busyDays = [21,26,28];
   return <>
     <div className="hero-row">
       <div><p className="eyebrow">MIÉRCOLES, 12 DE AGOSTO</p><h1>Hola, Ana <span>✦</span></h1><p>Hoy también cuenta. ¿Cómo te gustaría avanzar?</p></div>
       <div className="mood-card"><div><span>Tu pulso de hoy</span><strong>¿Cómo te sientes?</strong></div><button>Registrar <span>→</span></button></div>
     </div>
     <section className="session-card">
-      <div className="date-block"><strong>18</strong><span>AGO</span></div>
-      <div className="session-info"><p className="eyebrow">PRÓXIMA SESIÓN</p><h2>Psicoterapia individual</h2><p>10:00 AM · 50 min · Videollamada</p></div>
+      <div className="date-block"><strong>{session.day}</strong><span>AGO</span></div>
+      <div className="session-info"><p className="eyebrow">PRÓXIMA SESIÓN</p><h2>Psicoterapia individual</h2><p>{session.time} · 50 min · Videollamada</p></div>
       <div className="therapist"><div className="avatar sage">LM</div><div><strong>Laura Méndez</strong><span>Psicóloga clínica</span></div></div>
-      <button className="secondary" onClick={() => setSessionOpen(true)}>Ver detalles</button>
+      <button className="secondary" onClick={openDetails}>Ver detalles</button>
     </section>
     <div className="content-grid">
       <section><div className="section-title"><div><p className="eyebrow">CONTINUIDAD</p><h2>Tu proceso</h2></div><button>Ver todo →</button></div>
@@ -106,7 +114,7 @@ function Home({ onMessage }: { onMessage: () => void }) {
       </section>
     </div>
     <section className="team-strip"><div><p className="eyebrow">TU RED DE APOYO</p><h2>Tu equipo está cerca</h2></div><div className="team-person"><div className="avatar sage">LM</div><span><strong>Laura Méndez</strong><small>Psicóloga</small></span><i className="online"></i></div><div className="team-person"><div className="avatar blue">DR</div><span><strong>Diego Ríos</strong><small>Psiquiatra</small></span></div><button className="secondary" onClick={onMessage}>Enviar mensaje</button></section>
-    {sessionOpen && <div className="modal-backdrop" onClick={() => setSessionOpen(false)}><section className="modal" role="dialog" aria-modal="true" aria-label="Detalles de próxima sesión" onClick={e => e.stopPropagation()}><button className="modal-close" onClick={() => setSessionOpen(false)}>×</button><p className="eyebrow">PRÓXIMA SESIÓN</p><h2>Psicoterapia individual</h2><div className="session-detail"><span><small>Fecha</small><strong>Martes, 18 de agosto</strong></span><span><small>Hora</small><strong>10:00 AM · 50 min</strong></span><span><small>Modalidad</small><strong>Videollamada</strong></span><span><small>Profesional</small><strong>Laura Méndez</strong></span></div><button className="primary" onClick={() => setSessionOpen(false)}>Entendido</button></section></div>}
+    {sessionOpen && <div className="modal-backdrop" onClick={() => setSessionOpen(false)}><section className={`modal ${scheduleStep==='calendar'?'calendar-modal':''}`} role="dialog" aria-modal="true" aria-label="Detalles de próxima sesión" onClick={e => e.stopPropagation()}><button className="modal-close" onClick={() => setSessionOpen(false)}>×</button>{scheduleStep==='details'?<><p className="eyebrow">PRÓXIMA SESIÓN</p><h2>Psicoterapia individual</h2><div className="session-detail"><span><small>Fecha</small><strong>{session.day} de agosto de 2026</strong></span><span><small>Hora</small><strong>{session.time} · 50 min</strong></span><span><small>Modalidad</small><strong>Videollamada</strong></span><span><small>Profesional</small><strong>Laura Méndez</strong></span></div><div className="modal-actions"><button className="secondary" onClick={()=>{setSelectedDay(null);setSelectedTime('');setScheduleStep('calendar')}}>Reagendar sesión</button><button className="primary" onClick={() => setSessionOpen(false)}>Entendido</button></div></>:scheduleStep==='calendar'?<><button className="calendar-back" onClick={()=>setScheduleStep('details')}>← Detalles</button><p className="eyebrow">REAGENDAR SESIÓN</p><h2>Elige una nueva fecha</h2><div className="calendar-legend"><span><i className="available"></i>Disponible</span><span><i className="busy"></i>Ocupado</span></div><div className="calendar"><header><button>‹</button><strong>Agosto 2026</strong><button>›</button></header><div className="weekdays">{['L','M','M','J','V','S','D'].map((x,i)=><span key={i}>{x}</span>)}</div><div className="days">{Array.from({length:35},(_,i)=>i<5?null:i-4).map((day,i)=>day?<button key={i} disabled={busyDays.includes(day)||!availableDays.includes(day)} className={`${availableDays.includes(day)?'available':''} ${busyDays.includes(day)?'busy':''} ${selectedDay===day?'selected':''}`} onClick={()=>{setSelectedDay(day);setSelectedTime('')}}>{day}</button>:<span key={i}></span>)}</div></div>{selectedDay&&<div className="time-slots"><p>Horarios disponibles para el {selectedDay} de agosto</p><div>{['9:00 AM','10:30 AM','12:00 PM','4:00 PM'].map((time,i)=><button className={selectedTime===time?'selected':''} disabled={(selectedDay+i)%3===0} onClick={()=>setSelectedTime(time)} key={time}>{time}{(selectedDay+i)%3===0&&<small>Ocupado</small>}</button>)}</div></div>}<button className="primary confirm-schedule" disabled={!selectedDay||!selectedTime} onClick={confirmSchedule}>Confirmar nueva fecha</button></>:<div className="schedule-success"><span>✓</span><p className="eyebrow">SESIÓN REPROGRAMADA</p><h2>{session.day} de agosto · {session.time}</h2><p>Tu sesión con Laura Méndez quedó actualizada.</p><button className="primary" onClick={()=>setSessionOpen(false)}>Volver a Inicio</button></div>}</section></div>}
   </>;
 }
 
