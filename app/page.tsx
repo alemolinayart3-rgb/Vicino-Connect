@@ -4,16 +4,49 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 
 type Screen = "login" | "onboarding" | "profileSetup" | "app";
-type Tab = "Inicio" | "Proceso" | "Equipo" | "Mensajes" | "Perfil";
+type Tab = "Inicio" | "Pacientes" | "Proceso" | "Equipo" | "Mensajes" | "Perfil";
 type Role = "Paciente" | "Psicólogo" | "Psiquiatra";
 
 const tabs: { name: Tab; icon: string }[] = [
   { name: "Inicio", icon: "⌂" },
+  { name: "Pacientes", icon: "◎" },
   { name: "Proceso", icon: "◒" },
   { name: "Equipo", icon: "♡" },
   { name: "Mensajes", icon: "✉" },
   { name: "Perfil", icon: "○" },
 ];
+
+type Invitation = { id:string; token:string; email:string; invitee_name:string|null; status:string; expires_at:string; created_at:string };
+
+function PatientsPanel() {
+  const [invitations,setInvitations] = useState<Invitation[]>([]);
+  const [name,setName] = useState('');
+  const [email,setEmail] = useState('');
+  const [creating,setCreating] = useState(false);
+  const [feedback,setFeedback] = useState('');
+  const loadInvitations = async () => {
+    const {data} = await createClient().from('invitations').select('id,token,email,invitee_name,status,expires_at,created_at').order('created_at',{ascending:false});
+    setInvitations((data as Invitation[])||[]);
+  };
+  useEffect(()=>{loadInvitations()},[]);
+  const createInvitation = async () => {
+    if(!/^\S+@\S+\.\S+$/.test(email)){setFeedback('Escribe un correo electrónico válido.');return}
+    setCreating(true);setFeedback('');
+    const supabase=createClient();
+    const {data:{user}}=await supabase.auth.getUser();
+    if(!user){setFeedback('Tu sesión terminó. Ingresa nuevamente.');setCreating(false);return}
+    const {data,error}=await supabase.from('invitations').insert({inviter_id:user.id,email:email.trim().toLowerCase(),invitee_name:name.trim()||null,role:'paciente'}).select().single();
+    setCreating(false);
+    if(error){setFeedback(error.message);return}
+    setName('');setEmail('');setFeedback('Invitación creada. Ya puedes copiar el enlace.');
+    setInvitations([data as Invitation,...invitations]);
+  };
+  const inviteLink=(token:string)=>`${window.location.origin}/registro/paciente?token=${token}`;
+  const copyInvitation=async(token:string)=>{await navigator.clipboard.writeText(inviteLink(token));setFeedback('Enlace copiado. Puedes enviarlo por WhatsApp o correo.')};
+  const revoke=async(id:string)=>{const {error}=await createClient().from('invitations').update({status:'revoked'}).eq('id',id);if(!error){setInvitations(invitations.map(x=>x.id===id?{...x,status:'revoked'}:x));setFeedback('Invitación revocada.')}};
+  const statusLabel=(x:Invitation)=>x.status==='revoked'?'Revocada':x.status==='accepted'?'Aceptada':new Date(x.expires_at)<new Date()?'Vencida':'Pendiente';
+  return <div className="page-content patients-page"><div className="page-heading"><p className="eyebrow">GESTIÓN DE PACIENTES</p><h1>Pacientes</h1><p>Invita a una persona de forma privada y consulta el estado de sus accesos.</p></div><div className="patients-layout"><section className="panel invite-card"><p className="eyebrow">NUEVA INVITACIÓN</p><h2>Invitar paciente</h2><p>El enlace será exclusivo para el registro de un paciente y vencerá en 7 días.</p><label className="edit-field">Nombre, opcional<input value={name} onChange={e=>setName(e.target.value)} placeholder="Ej. Andrea López"/></label><label className="edit-field">Correo electrónico<input value={email} onChange={e=>setEmail(e.target.value)} type="email" placeholder="paciente@correo.com"/></label><button className="primary" disabled={creating} onClick={createInvitation}>{creating?'Generando…':'Generar invitación'} <span>→</span></button>{feedback&&<p className="invite-feedback" role="status">{feedback}</p>}</section><section className="panel invitation-list"><div className="section-title"><div><p className="eyebrow">ACCESOS COMPARTIDOS</p><h2>Invitaciones</h2></div><button onClick={loadInvitations}>Actualizar</button></div>{invitations.length===0?<div className="empty-state"><h3>Aún no has enviado invitaciones</h3><p>Las invitaciones nuevas aparecerán aquí.</p></div>:invitations.map(inv=><article className="invitation-row" key={inv.id}><div><strong>{inv.invitee_name||'Paciente por registrar'}</strong><span>{inv.email}</span><small>Vence {new Date(inv.expires_at).toLocaleDateString('es-MX')}</small></div><i className={`invite-status ${statusLabel(inv).toLowerCase()}`}>{statusLabel(inv)}</i><div>{statusLabel(inv)==='Pendiente'&&<><button className="secondary" onClick={()=>copyInvitation(inv.token)}>Copiar enlace</button><button className="text-danger" onClick={()=>revoke(inv.id)}>Revocar</button></>}</div></article>)}</section></div></div>;
+}
 
 function Mark({ compact = false, onHome }: { compact?: boolean; onHome?: () => void }) {
   const content = <><img className="brand-mark" src="/vicino-mark.png" alt="" /><span className="brand-wordmark"><strong>vicino</strong><small>CONNECT</small></span></>;
@@ -360,6 +393,7 @@ function Dashboard({ onLogout, initialRole, profileName, freshProfile }: { onLog
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notificationsRead, setNotificationsRead] = useState(false);
   const [supportVisible, setSupportVisible] = useState(true);
+  const visibleTabs = role==='Psicólogo' ? tabs : tabs.filter(item=>item.name!=='Pacientes');
   useEffect(() => {
     const seen = window.localStorage.getItem('vicino_support_seen') === 'true';
     setSupportVisible(!seen);
@@ -383,9 +417,9 @@ function Dashboard({ onLogout, initialRole, profileName, freshProfile }: { onLog
   }, [role]);
   const patientInitials = profileName.split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase() || 'VC';
   const identity = role==='Paciente'?{initial:patientInitials,name:profileName}:role==='Psicólogo'?{initial:'LM',name:'Laura Méndez'}:{initial:'DR',name:'Diego Ríos'};
-  return <main className="dashboard"><aside className="sidebar"><Mark compact/><nav>{tabs.map(item=><button className={tab===item.name?'active':''} onClick={()=>setTab(item.name)} key={item.name}><span>{item.icon}</span>{item.name}{item.name==='Mensajes'&&!freshProfile&&<i>2</i>}</button>)}</nav>{!freshProfile&&<div className="support"><span>♡</span><strong>{role==='Paciente'?'¿Necesitas apoyo?':'Comunicación segura'}</strong><p>{role==='Paciente'?'Tu equipo está disponible.':'Tienes 2 mensajes pendientes.'}</p><button onClick={()=>setTab('Mensajes')}>Contactar</button></div>}<button className="side-profile" onClick={()=>setTab('Perfil')}><div className="avatar">{identity.initial}</div><span><strong>{identity.name}</strong><small>{role}</small></span><b>•••</b></button></aside>
-    <section className="main"><header className="topbar"><div className="mobile-logo"><Mark compact/></div><label className="role-switch"><span>Perfil</span><select value={role} disabled><option>{role}</option></select></label><div className="notification-center">{!freshProfile&&<><button className="alert" aria-label="Abrir notificaciones" aria-expanded={notificationsOpen} onClick={()=>setNotificationsOpen(!notificationsOpen)}>♧{!notificationsRead&&<i></i>}</button>{notificationsOpen&&<section className="notification-panel"><header><div><p className="eyebrow">ACTUALIZACIONES</p><h2>Notificaciones</h2></div><button onClick={()=>setNotificationsOpen(false)} aria-label="Cerrar notificaciones">×</button></header></section>}</>}</div><button className="logout-mini" onClick={onLogout}>Salir</button></header><div className="view">{freshProfile&&role==='Paciente'?<FreshPatientView tab={tab} name={profileName}/>:tab==='Inicio'?(role==='Paciente'?<Home onMessage={()=>openMessage('laura')} onProcess={()=>setTab('Proceso')} onTeam={()=>setTab('Equipo')}/>:<ProfessionalHome role={role} onMessages={()=>setTab('Mensajes')}/>):tab==='Proceso'?<Process/>:tab==='Equipo'?<Team onMessage={openMessage}/>:tab==='Mensajes'?<Messages key={selectedChat} initialChat={selectedChat}/>:<Profile role={role} onLogout={onLogout}/>}</div></section>
-    <nav className="mobile-nav">{tabs.map(item=><button className={tab===item.name?'active':''} onClick={()=>setTab(item.name)} key={item.name}><span>{item.icon}</span>{item.name}</button>)}</nav>
+  return <main className="dashboard"><aside className="sidebar"><Mark compact/><nav>{visibleTabs.map(item=><button className={tab===item.name?'active':''} onClick={()=>setTab(item.name)} key={item.name}><span>{item.icon}</span>{item.name}{item.name==='Mensajes'&&!freshProfile&&<i>2</i>}</button>)}</nav>{!freshProfile&&<div className="support"><span>♡</span><strong>{role==='Paciente'?'¿Necesitas apoyo?':'Comunicación segura'}</strong><p>{role==='Paciente'?'Tu equipo está disponible.':'Tienes 2 mensajes pendientes.'}</p><button onClick={()=>setTab('Mensajes')}>Contactar</button></div>}<button className="side-profile" onClick={()=>setTab('Perfil')}><div className="avatar">{identity.initial}</div><span><strong>{identity.name}</strong><small>{role}</small></span><b>•••</b></button></aside>
+    <section className="main"><header className="topbar"><div className="mobile-logo"><Mark compact/></div><label className="role-switch"><span>Perfil</span><select value={role} disabled><option>{role}</option></select></label><div className="notification-center">{!freshProfile&&<><button className="alert" aria-label="Abrir notificaciones" aria-expanded={notificationsOpen} onClick={()=>setNotificationsOpen(!notificationsOpen)}>♧{!notificationsRead&&<i></i>}</button>{notificationsOpen&&<section className="notification-panel"><header><div><p className="eyebrow">ACTUALIZACIONES</p><h2>Notificaciones</h2></div><button onClick={()=>setNotificationsOpen(false)} aria-label="Cerrar notificaciones">×</button></header></section>}</>}</div><button className="logout-mini" onClick={onLogout}>Salir</button></header><div className="view">{freshProfile&&role==='Paciente'?<FreshPatientView tab={tab} name={profileName}/>:tab==='Inicio'?(role==='Paciente'?<Home onMessage={()=>openMessage('laura')} onProcess={()=>setTab('Proceso')} onTeam={()=>setTab('Equipo')}/>:<ProfessionalHome role={role} onMessages={()=>setTab('Mensajes')}/>):tab==='Pacientes'?<PatientsPanel/>:tab==='Proceso'?<Process/>:tab==='Equipo'?<Team onMessage={openMessage}/>:tab==='Mensajes'?<Messages key={selectedChat} initialChat={selectedChat}/>:<Profile role={role} onLogout={onLogout}/>}</div></section>
+    <nav className="mobile-nav">{visibleTabs.map(item=><button className={tab===item.name?'active':''} onClick={()=>setTab(item.name)} key={item.name}><span>{item.icon}</span>{item.name}</button>)}</nav>
   </main>;
 }
 
