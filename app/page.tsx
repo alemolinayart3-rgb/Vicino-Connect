@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createClient } from "@/utils/supabase/client";
 
 type Screen = "login" | "onboarding" | "app";
 type Tab = "Inicio" | "Proceso" | "Equipo" | "Mensajes" | "Perfil";
@@ -26,8 +27,44 @@ function Mark({ compact = false }: { compact?: boolean }) {
 function Login({ onNext }: { onNext: (role: Role, isNewAccount?: boolean) => void }) {
   const [role, setRole] = useState<Role>("Paciente");
   const demoEmails: Record<Role,string> = {Paciente:'ana@ejemplo.com',Psicólogo:'laura@vicino.mx',Psiquiatra:'diego@vicino.mx'};
-  const [email, setEmail] = useState(demoEmails.Paciente);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
   const selectRole = (nextRole: Role) => { setRole(nextRole); setEmail(demoEmails[nextRole]); };
+  const authenticate = async (createAccount = false) => {
+    setMessage('');
+    if (!email || password.length < 6) {
+      setMessage('Escribe un correo válido y una contraseña de al menos 6 caracteres.');
+      return;
+    }
+    if (createAccount && role !== 'Paciente') {
+      setMessage('Las cuentas profesionales se habilitan mediante invitación y verificación de credenciales.');
+      return;
+    }
+    setLoading(true);
+    const supabase = createClient();
+    if (createAccount) {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      });
+      setLoading(false);
+      setMessage(error ? error.message : 'Revisa tu correo para confirmar tu cuenta de Vicino Connect.');
+      return;
+    }
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error || !data.user) {
+      setLoading(false);
+      setMessage(error?.message || 'No fue posible iniciar sesión.');
+      return;
+    }
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single();
+    const actualRole: Role = profile?.role === 'psicologo' ? 'Psicólogo' : profile?.role === 'psiquiatra' ? 'Psiquiatra' : 'Paciente';
+    setLoading(false);
+    onNext(actualRole, false);
+  };
   return (
     <main className="auth-shell">
       <section className="welcome-panel">
@@ -52,10 +89,11 @@ function Login({ onNext }: { onNext: (role: Role, isNewAccount?: boolean) => voi
             ))}
           </div>
           <label>Correo electrónico<input value={email} onChange={e=>setEmail(e.target.value)} type="email" /></label>
-          <label>Contraseña<div className="password"><input defaultValue="vicinoconnect" type="password" /><span>○</span></div></label>
+          <label>Contraseña<div className="password"><input value={password} onChange={e=>setPassword(e.target.value)} type="password" /><span>○</span></div></label>
           <div className="login-meta"><label className="remember"><input type="checkbox" defaultChecked /> Recordarme</label><button>Olvidé mi contraseña</button></div>
-          <button className="primary" onClick={() => onNext(role, false)}>Continuar <span>→</span></button>
-          <p className="signup">¿Es tu primera vez? <button onClick={() => onNext(role, true)}>Crear una cuenta</button></p>
+          {message && <p className="auth-message" role="status">{message}</p>}
+          <button className="primary" disabled={loading} onClick={() => authenticate(false)}>{loading ? 'Ingresando…' : 'Continuar'} <span>→</span></button>
+          <p className="signup">¿Es tu primera vez? <button disabled={loading} onClick={() => authenticate(true)}>Crear una cuenta</button></p>
         </div>
         <p className="legal">Al continuar aceptas nuestros Términos y Aviso de privacidad.</p>
       </section>
@@ -322,7 +360,24 @@ function Dashboard({ onLogout, initialRole }: { onLogout: () => void; initialRol
 export default function App() {
   const [screen, setScreen] = useState<Screen>('login');
   const [role, setRole] = useState<Role>('Paciente');
+  const [checkingSession, setCheckingSession] = useState(true);
+  useEffect(() => {
+    const supabase = createClient();
+    const loadSession = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+        const actualRole: Role = profile?.role === 'psicologo' ? 'Psicólogo' : profile?.role === 'psiquiatra' ? 'Psiquiatra' : 'Paciente';
+        setRole(actualRole);
+        setScreen(window.localStorage.getItem('vicino_onboarding_seen_v02') === 'true' ? 'app' : 'onboarding');
+      }
+      setCheckingSession(false);
+    };
+    loadSession();
+  }, []);
   const login = (nextRole: Role, isNewAccount = false) => { setRole(nextRole); const seen = window.localStorage.getItem('vicino_onboarding_seen_v02') === 'true'; setScreen(isNewAccount || !seen ? 'onboarding' : 'app'); };
   const finishOnboarding = () => { window.localStorage.setItem('vicino_onboarding_seen_v02','true'); setScreen('app'); };
-  return screen === 'login' ? <Login onNext={login}/> : screen === 'onboarding' ? <Onboarding onDone={finishOnboarding}/> : <Dashboard initialRole={role} onLogout={()=>setScreen('login')}/>;
+  const logout = async () => { await createClient().auth.signOut(); setScreen('login'); };
+  if (checkingSession) return <main className="auth-loading">Preparando tu espacio…</main>;
+  return screen === 'login' ? <Login onNext={login}/> : screen === 'onboarding' ? <Onboarding onDone={finishOnboarding}/> : <Dashboard initialRole={role} onLogout={logout}/>;
 }
