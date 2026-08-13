@@ -15,13 +15,10 @@ const tabs: { name: Tab; icon: string }[] = [
   { name: "Perfil", icon: "○" },
 ];
 
-function Mark({ compact = false }: { compact?: boolean }) {
-  return (
-    <div className={`brand ${compact ? "compact" : ""}`} aria-label="Vicino Connect">
-      <img className="brand-mark" src="/vicino-mark.png" alt="" />
-      <span className="brand-wordmark"><strong>vicino</strong><small>CONNECT</small></span>
-    </div>
-  );
+function Mark({ compact = false, onHome }: { compact?: boolean; onHome?: () => void }) {
+  const content = <><img className="brand-mark" src="/vicino-mark.png" alt="" /><span className="brand-wordmark"><strong>vicino</strong><small>CONNECT</small></span></>;
+  const goHome = onHome || (() => window.location.assign('/'));
+  return <button type="button" className={`brand brand-home ${compact ? "compact" : ""}`} aria-label="Ir a Inicio" onClick={goHome}>{content}</button>;
 }
 
 function Login({ onNext }: { onNext: (role: Role, isNewAccount?: boolean) => void }) {
