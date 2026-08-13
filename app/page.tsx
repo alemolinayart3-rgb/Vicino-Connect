@@ -35,11 +35,11 @@ function PatientsPanel() {
     const supabase=createClient();
     const {data:{user}}=await supabase.auth.getUser();
     if(!user){setFeedback('Tu sesión terminó. Ingresa nuevamente.');setCreating(false);return}
-    const {data,error}=await supabase.from('invitations').insert({inviter_id:user.id,email:email.trim().toLowerCase(),invitee_name:name.trim()||null,role:'paciente'}).select().single();
+    const {data,error}=await supabase.rpc('create_patient_invitation',{patient_email:email.trim().toLowerCase(),patient_name:name.trim()||null});
     setCreating(false);
     if(error){setFeedback(error.message);return}
     setName('');setEmail('');setFeedback('Invitación creada. Ya puedes copiar el enlace.');
-    setInvitations([data as Invitation,...invitations]);
+    const created=data as Invitation;setInvitations(current=>current.some(item=>item.id===created.id)?current:[created,...current]);
   };
   const inviteLink=(token:string)=>`${window.location.origin}/registro/paciente?token=${token}`;
   const copyInvitation=async(token:string)=>{await navigator.clipboard.writeText(inviteLink(token));setFeedback('Enlace copiado. Puedes enviarlo por WhatsApp o correo.')};
