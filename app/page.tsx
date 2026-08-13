@@ -39,7 +39,7 @@ function PatientsPanel() {
     const {data,error}=await supabase.rpc('create_patient_invitation',{patient_email:email.trim().toLowerCase(),patient_name:name.trim()||null});
     setCreating(false);
     if(error){setFeedback(error.message);return}
-    setName('');setEmail('');setFeedback('Invitación creada. Ya puedes copiar el enlace.');
+    setName('');setEmail('');setFeedback('Solicitud enviada. Ahora solo falta que el paciente la acepte desde su cuenta Vicino.');
     const created=data as Invitation;setInvitations(current=>current.some(item=>item.id===created.id)?current:[created,...current]);
   };
   const inviteLink=(token:string)=>`${window.location.origin}/registro/paciente?token=${token}`;
