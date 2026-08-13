@@ -17,7 +17,8 @@ const tabs: { name: Tab; icon: string }[] = [
 function Mark({ compact = false }: { compact?: boolean }) {
   return (
     <div className={`brand ${compact ? "compact" : ""}`} aria-label="Vicino Connect">
-      <img className="brand-artwork" src="/vicino-brand-original.png" alt="Vicino Connect — Tu bienestar, acompañado" />
+      <img className="brand-mark" src="/vicino-mark.png" alt="" />
+      <span className="brand-wordmark"><strong>vicino</strong><small>CONNECT</small></span>
     </div>
   );
 }
@@ -41,6 +42,7 @@ function Login({ onNext }: { onNext: (role: Role, isNewAccount?: boolean) => voi
       </section>
       <section className="login-panel">
         <div className="login-card">
+          <div className="mobile-auth-brand"><Mark /></div>
           <p className="mini-brand">VICINO CONNECT</p>
           <h2>Qué gusto verte</h2>
           <p className="muted">Ingresa para continuar con tu proceso.</p>
