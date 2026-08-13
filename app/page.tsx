@@ -132,8 +132,13 @@ function ProfileSetup({ onDone }: { onDone: (name: string) => Promise<void> }) {
   const save = async () => {
     if (name.trim().length < 2) { setError('Escribe tu nombre para personalizar tu espacio.'); return; }
     setSaving(true);
-    await onDone(name.trim());
-    setSaving(false);
+    setError('');
+    try {
+      await onDone(name.trim());
+    } catch {
+      setError('No pudimos guardar tu nombre. Intenta nuevamente.');
+      setSaving(false);
+    }
   };
   return <main className="onboarding"><header><Mark compact /></header><section className="onboard-card"><div className="onboard-icon">♡</div><p className="eyebrow">ANTES DE COMENZAR</p><h1>¿Cómo te gustaría que te llamemos?</h1><p>Usaremos este nombre para acompañarte dentro de Vicino. Puedes modificarlo después desde tu perfil.</p><label className="edit-field">Tu nombre<input autoFocus value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')save()}} placeholder="Escribe tu nombre" /></label>{error&&<p className="auth-message" role="alert">{error}</p>}<button className="primary" disabled={saving} onClick={save}>{saving?'Guardando…':'Crear mi espacio'} <span>→</span></button></section></main>;
 }
@@ -417,7 +422,7 @@ export default function App() {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setScreen('login'); return; }
-    const { error } = await supabase.from('profiles').update({full_name:name,updated_at:new Date().toISOString()}).eq('id',user.id);
+    const { error } = await supabase.from('profiles').update({full_name:name}).eq('id',user.id);
     if (error) throw error;
     setProfileName(name);
     setFreshProfile(true);
