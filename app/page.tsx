@@ -50,9 +50,18 @@ function PatientsPanel() {
 }
 
 function Mark({ compact = false, onHome }: { compact?: boolean; onHome?: () => void }) {
-  const content = <><img className="brand-mark" src="/vicino-mark.png" alt="" /><span className="brand-wordmark"><strong>vicino</strong><small>CONNECT</small></span></>;
+  const content = <><img className="brand-mark" src="/vicino-mark.png" alt="" /><span className="brand-wordmark"><strong>vicino</strong><small>CONNECT</small></span>{compact&&<PendingCareInvitations/>}</>;
   const goHome = onHome || (() => window.location.assign('/'));
   return <button type="button" className={`brand brand-home ${compact ? "compact" : ""}`} aria-label="Ir a Inicio" onClick={goHome}>{content}</button>;
+}
+
+type CareInvite={invitation_id:string;token:string;professional_name:string;organization_name:string|null;expires_at:string;created_at:string};
+function PendingCareInvitations(){
+ const [invites,setInvites]=useState<CareInvite[]>([]),[working,setWorking]=useState(false),[message,setMessage]=useState('');
+ useEffect(()=>{(async()=>{const {data}=await createClient().rpc('my_pending_patient_invitations');setInvites((data as CareInvite[])||[])})()},[]);
+ const decide=async(invite:CareInvite,accept:boolean)=>{setWorking(true);setMessage(accept?'Vinculando tu cuenta…':'Rechazando invitación…');const client=createClient();const {error}=await client.rpc(accept?'accept_patient_invitation':'decline_patient_invitation',{invitation_token:invite.token});setWorking(false);if(error){setMessage(error.message);return}setInvites(current=>current.filter(item=>item.invitation_id!==invite.invitation_id));setMessage(accept?'Listo. El profesional ya forma parte de tu equipo.':'Invitación rechazada.');if(accept)setTimeout(()=>window.location.reload(),700)};
+ if(!invites.length&&!message)return null;
+ return <div className="care-invite-layer" role="region" aria-label="Invitaciones de profesionales">{invites.map(invite=><section className="care-invite-card" key={invite.invitation_id}><div className="care-invite-icon">♡</div><div><p className="eyebrow">SOLICITUD DE VINCULACIÓN</p><h2>{invite.professional_name} quiere acompañarte</h2><p>Te invita a formar parte de <strong>{invite.organization_name||'su espacio profesional'}</strong>. Si aceptas, aparecerá en tu equipo y podrán comenzar a coordinar tu atención.</p><small>La invitación vence el {new Date(invite.expires_at).toLocaleDateString('es-MX')}.</small></div><div className="care-invite-actions"><button className="primary" disabled={working} onClick={()=>decide(invite,true)}>Aceptar vinculación</button><button className="secondary" disabled={working} onClick={()=>decide(invite,false)}>Rechazar</button></div></section>)}{message&&<p className="care-invite-message" role="status">{message}</p>}</div>;
 }
 
 function Login({ onNext }: { onNext: (role: Role, isNewAccount?: boolean) => void }) {
