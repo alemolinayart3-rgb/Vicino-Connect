@@ -27,7 +27,7 @@ function PatientsPanel() {
   const [feedback,setFeedback] = useState('');
   const loadInvitations = async () => {
     const {data} = await createClient().from('invitations').select('id,token,email,invitee_name,status,expires_at,created_at').order('created_at',{ascending:false});
-    setInvitations((data as Invitation[])||[]);
+    setInvitations(((data as Invitation[])||[]).filter(item=>item.status!=='accepted'));
   };
   useEffect(()=>{loadInvitations()},[]);
   const createInvitation = async () => {
@@ -51,7 +51,7 @@ function PatientsPanel() {
 }
 
 function Mark({ compact = false, onHome }: { compact?: boolean; onHome?: () => void }) {
-  const content = <><img className="brand-mark" src="/vicino-mark.png" alt="" /><span className="brand-wordmark"><strong>vicino</strong><small>CONNECT</small></span>{compact&&<PendingCareInvitations/>}</>;
+  const content = <><img className="brand-mark" src="/vicino-mark.png" alt="" /><span className="brand-wordmark"><strong>vicino</strong><small>CONNECT</small></span>{compact&&<><PendingCareInvitations/><ActivePatientsWorkspace/></>}</>;
   const goHome = onHome || (() => window.location.assign('/'));
   return <button type="button" className={`brand brand-home ${compact ? "compact" : ""}`} aria-label="Ir a Inicio" onClick={goHome}>{content}</button>;
 }
@@ -63,6 +63,16 @@ function PendingCareInvitations(){
  const decide=async(invite:CareInvite,accept:boolean)=>{setWorking(true);setMessage(accept?'Vinculando tu cuenta…':'Rechazando invitación…');const client=createClient();const {error}=await client.rpc(accept?'accept_patient_invitation':'decline_patient_invitation',{invitation_token:invite.token});setWorking(false);if(error){setMessage(error.message);return}setInvites(current=>current.filter(item=>item.invitation_id!==invite.invitation_id));setMessage(accept?'Listo. El profesional ya forma parte de tu equipo.':'Invitación rechazada.');if(accept)setTimeout(()=>window.location.reload(),700)};
  if(!mounted||(!invites.length&&!message))return null;
  return createPortal(<div className="care-invite-layer" role="region" aria-label="Invitaciones de profesionales">{invites.map(invite=><section className="care-invite-card" key={invite.invitation_id}><div className="care-invite-icon">♡</div><div className="care-invite-copy"><p className="eyebrow">SOLICITUD DE VINCULACIÓN</p><h2>{invite.professional_name} quiere acompañarte</h2><p><strong>{invite.organization_name||'Espacio profesional'}</strong> · Vence {new Date(invite.expires_at).toLocaleDateString('es-MX')}</p></div><div className="care-invite-actions"><button className="primary" disabled={working} onClick={()=>decide(invite,true)}>Aceptar</button><button className="secondary" disabled={working} onClick={()=>decide(invite,false)}>Rechazar</button></div></section>)}{message&&<p className="care-invite-message" role="status">{message}</p>}</div>,document.body);
+}
+
+type AssignedPatient={assignment_id:string;patient_id:string;full_name:string;status:string;last_activity_at:string};
+function ActivePatientsWorkspace(){
+ const [patients,setPatients]=useState<AssignedPatient[]>([]),[target,setTarget]=useState<Element|null>(null),[selected,setSelected]=useState<AssignedPatient|null>(null),[message,setMessage]=useState('');
+ const [form,setForm]=useState({kind:'activity',title:'',instructions:'',frequency:'once'});
+ useEffect(()=>{(async()=>{const {data}=await createClient().rpc('my_assigned_patients');setPatients((data as AssignedPatient[])||[])})();const observer=new MutationObserver(()=>setTarget(document.querySelector('.patients-page')));observer.observe(document.body,{childList:true,subtree:true});setTarget(document.querySelector('.patients-page'));return()=>observer.disconnect()},[]);
+ const save=async()=>{if(!selected||form.title.trim().length<3){setMessage('Escribe un título breve.');return}setMessage('Guardando…');const {error}=await createClient().from('care_plan_items').insert({assignment_id:selected.assignment_id,created_by:(await createClient().auth.getUser()).data.user?.id,kind:form.kind,title:form.title.trim(),instructions:form.instructions.trim()||null,frequency:form.kind==='private_note'?'once':form.frequency});if(error){setMessage(error.message);return}setMessage('Seguimiento guardado.');setForm({kind:'activity',title:'',instructions:'',frequency:'once'});setTimeout(()=>setSelected(null),700)};
+ if(!target||!patients.length)return null;
+ return createPortal(<section className="panel active-patients"><div className="section-title"><div><p className="eyebrow">VÍNCULOS CONFIRMADOS</p><h2>Pacientes activos</h2></div><span>{patients.filter(x=>x.status==='active').length} activos</span></div><div className="active-patient-list">{patients.map(patient=><article key={patient.assignment_id}><div className="avatar sage">{patient.full_name.split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase()}</div><div><strong>{patient.full_name}</strong><small>{patient.status==='active'?'Acompañamiento activo':'Vínculo suspendido'}</small></div><i className={`care-link-status ${patient.status}`}>{patient.status==='active'?'Activo':'Suspendido'}</i><button className="secondary" disabled={patient.status!=='active'} onClick={()=>{setSelected(patient);setMessage('')}}>Añadir seguimiento</button></article>)}</div>{selected&&<div className="follow-up-composer"><div className="section-title"><div><p className="eyebrow">SEGUIMIENTO DE {selected.full_name.toUpperCase()}</p><h3>Nuevo recurso</h3></div><button onClick={()=>setSelected(null)}>×</button></div><div className="follow-up-fields"><label>Tipo<select value={form.kind} onChange={e=>setForm({...form,kind:e.target.value})}><option value="activity">Actividad acordada</option><option value="check_in">Registro breve</option><option value="private_note">Nota clínica privada</option></select></label><label>Frecuencia<select disabled={form.kind==='private_note'} value={form.kind==='private_note'?'once':form.frequency} onChange={e=>setForm({...form,frequency:e.target.value})}><option value="once">Una vez</option><option value="daily">Diario</option><option value="weekly">Semanal</option></select></label></div><label>Título<input value={form.title} onChange={e=>setForm({...form,title:e.target.value})} placeholder="Ej. Registro de sueño"/></label><label>Indicaciones<textarea value={form.instructions} onChange={e=>setForm({...form,instructions:e.target.value})} placeholder="Describe el acompañamiento con un tono amable."/></label>{form.kind==='private_note'&&<p className="privacy-hint">Esta nota solo será visible para el profesional de Psicología asignado.</p>}{message&&<p className="invite-feedback">{message}</p>}<button className="primary" onClick={save}>Guardar seguimiento</button></div>}</section>,target);
 }
 
 function Login({ onNext }: { onNext: (role: Role, isNewAccount?: boolean) => void }) {
