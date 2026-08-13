@@ -1,0 +1,15 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { createClient } from "@/utils/supabase/client";
+
+type Organization = { id:string; name:string; status:string; inactivity_days:number; created_at:string; organization_memberships:{count:number}[]; care_assignments:{count:number}[] };
+
+export default function MasterPage() {
+  const [items,setItems]=useState<Organization[]>([]),[message,setMessage]=useState("Validando acceso…"),[authorized,setAuthorized]=useState(false);
+  const load=async()=>{const response=await fetch('/api/master/organizations');const body=await response.json();if(!response.ok){setAuthorized(false);setMessage(body.error||'Acceso restringido.');return}setAuthorized(true);setMessage('');setItems(body.organizations||[])};
+  useEffect(()=>{load()},[]);
+  const changeStatus=async(id:string,status:string)=>{setMessage('Guardando cambio…');const response=await fetch('/api/master/organizations',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,status,reason:status==='suspended'?'Servicio suspendido por administración':null})});if(response.ok){await load()}else{setMessage('No pudimos actualizar la organización.')}};
+  if(!authorized)return <main className="master-shell"><section className="master-access"><img src="/vicino-mark.png" alt=""/><p className="eyebrow">ADMINISTRACIÓN VICINO</p><h1>{message}</h1><p>Esta sección no contiene información clínica y solo está disponible para la cuenta master.</p><a className="primary" href="/">Volver al inicio</a></section></main>;
+  return <main className="master-shell"><header className="master-header"><a href="/" className="master-brand"><img src="/vicino-mark.png" alt=""/><strong>Vicino Master</strong></a><div><p className="eyebrow">CONTROL DE SERVICIO</p><h1>Organizaciones</h1><p>Administra el estado comercial sin acceder a expedientes, notas o mensajes.</p></div></header>{message&&<p className="invite-feedback">{message}</p>}<section className="master-grid">{items.map(org=><article className="panel organization-card" key={org.id}><div><i className={`organization-status ${org.status}`}>{org.status==='active'?'Activa':org.status==='suspended'?'Suspendida':'Cancelada'}</i><h2>{org.name}</h2><small>Alta: {new Date(org.created_at).toLocaleDateString('es-MX')}</small></div><div className="organization-metrics"><span><strong>{org.organization_memberships?.[0]?.count||0}</strong><small>Miembros</small></span><span><strong>{org.care_assignments?.[0]?.count||0}</strong><small>Vínculos</small></span><span><strong>{org.inactivity_days}</strong><small>Días para suspensión</small></span></div><div className="organization-actions">{org.status!=='active'&&<button className="secondary" onClick={()=>changeStatus(org.id,'active')}>Reactivar</button>}{org.status==='active'&&<button className="secondary" onClick={()=>changeStatus(org.id,'suspended')}>Suspender servicio</button>}<button className="text-danger" onClick={()=>changeStatus(org.id,'cancelled')}>Dar de baja</button></div></article>)}</section></main>;
+}
