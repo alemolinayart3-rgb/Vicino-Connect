@@ -38,3 +38,7 @@ yarn-error.log*
 /.wrangler/
 /outputs/
 /work/
+/.pnpm-store/
+/.sites-stage*/
+/tmp/
+/*.tar.gz
