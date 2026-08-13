@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 
-type Screen = "login" | "onboarding" | "app";
+type Screen = "login" | "onboarding" | "profileSetup" | "app";
 type Tab = "Inicio" | "Proceso" | "Equipo" | "Mensajes" | "Perfil";
 type Role = "Paciente" | "Psicólogo" | "Psiquiatra";
 
@@ -123,6 +123,28 @@ function Onboarding({ onDone }: { onDone: () => void }) {
       </section>
     </main>
   );
+}
+
+function ProfileSetup({ onDone }: { onDone: (name: string) => Promise<void> }) {
+  const [name, setName] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const save = async () => {
+    if (name.trim().length < 2) { setError('Escribe tu nombre para personalizar tu espacio.'); return; }
+    setSaving(true);
+    await onDone(name.trim());
+    setSaving(false);
+  };
+  return <main className="onboarding"><header><Mark compact /></header><section className="onboard-card"><div className="onboard-icon">♡</div><p className="eyebrow">ANTES DE COMENZAR</p><h1>¿Cómo te gustaría que te llamemos?</h1><p>Usaremos este nombre para acompañarte dentro de Vicino. Puedes modificarlo después desde tu perfil.</p><label className="edit-field">Tu nombre<input autoFocus value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')save()}} placeholder="Escribe tu nombre" /></label>{error&&<p className="auth-message" role="alert">{error}</p>}<button className="primary" disabled={saving} onClick={save}>{saving?'Guardando…':'Crear mi espacio'} <span>→</span></button></section></main>;
+}
+
+function FreshPatientView({ tab, name }: { tab: Tab; name: string }) {
+  if (tab === 'Inicio') return <div className="page-content"><div className="page-heading"><p className="eyebrow">TU ESPACIO</p><h1>Hola, {name}</h1><p>Qué gusto acompañarte. Tu espacio está listo para comenzar.</p></div><section className="panel empty-state"><p className="eyebrow">PRIMEROS PASOS</p><h2>Aún no tienes sesiones programadas</h2><p>Cuando un profesional se una a tu equipo, aquí aparecerán tus próximas sesiones, recursos y avances.</p></section><div className="content-grid"><section className="panel empty-state"><h2>Tu proceso comenzará aquí</h2><p>Este espacio se irá construyendo contigo, sin pendientes ni información de ejemplo.</p></section><section className="panel empty-state"><h2>Tu equipo</h2><p>Todavía no hay profesionales vinculados a tu cuenta.</p></section></div></div>;
+  if (tab === 'Proceso') return <div className="page-content"><div className="page-heading"><p className="eyebrow">TU CAMINO</p><h1>Mi proceso</h1><p>Este espacio crecerá a tu ritmo.</p></div><section className="panel empty-state"><h2>Aún no hay un proceso registrado</h2><p>Cuando comiences el acompañamiento, aquí encontrarás únicamente la información que tú y tu equipo construyan.</p></section></div>;
+  if (tab === 'Equipo') return <div className="page-content"><div className="page-heading"><p className="eyebrow">RED DE APOYO</p><h1>Mi equipo</h1><p>Las personas que te acompañen aparecerán aquí.</p></div><section className="panel empty-state"><h2>Todavía no tienes profesionales vinculados</h2><p>La invitación y vinculación segura del equipo será el siguiente paso.</p></section></div>;
+  if (tab === 'Mensajes') return <div className="page-content"><div className="page-heading"><p className="eyebrow">CONVERSACIONES SEGURAS</p><h1>Mensajes</h1></div><section className="panel empty-state"><h2>No hay conversaciones todavía</h2><p>Podrás escribir cuando un profesional forme parte de tu equipo.</p></section></div>;
+  const initials = name.split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase();
+  return <div className="page-content"><div className="page-heading"><p className="eyebrow">TU ESPACIO</p><h1>Perfil</h1></div><section className="profile-settings"><div className="avatar xl">{initials}</div><div><h2>{name}</h2><p>Paciente</p></div></section></div>;
 }
 
 function Home({ onMessage, onProcess, onTeam }: { onMessage: () => void; onProcess: () => void; onTeam: () => void }) {
@@ -322,7 +344,7 @@ function Profile({ role, onLogout }: { role: Role; onLogout: () => void }) {
   return <div className="page-content" id="perfil-profesional"><div className="page-heading"><p className="eyebrow">TU ESPACIO</p><h1>Perfil</h1></div><section className="profile-settings"><div className={`avatar xl ${data.color}`}>{data.initial}</div><div><h2>{data.name}</h2><p>{data.subtitle}</p>{data.license&&<small>{data.license}</small>}</div><button className="secondary" onClick={()=>setEditing(true)}>Editar perfil</button></section>{role!=='Paciente'&&<section className="professional-identity"><span className={`role-badge ${role==='Psicólogo'?'sage':'blue'}`}>{role}</span><div><strong>Perfil profesional verificado</strong><p>{role==='Psicólogo'?'Acceso al espacio psicológico y procesos terapéuticos.':'Acceso al espacio médico, indicaciones y medicación.'}</p></div></section>}<div className="settings-grid">{data.items.map((x,i)=>x.includes('Disponibilidad')?<a className="setting" href="#disponibilidad-agenda" key={x}><span>{['○','◇','◌','?'][i]}</span><strong>{x}</strong><i>→</i></a>:<button className="setting" onClick={()=>setActiveSetting(x)} key={x}><span>{['○','◇','◌','?'][i]}</span><strong>{x}</strong><i>→</i></button>)}</div><button className="logout" onClick={onLogout}>Cerrar sesión</button>{role!=='Paciente'&&<section className="native-record" id="disponibilidad-agenda"><div className="native-record-card"><a className="native-close" href="#perfil-profesional">×</a><a className="back-to-panel" href="#perfil-profesional">← Volver al perfil</a><div className="record-title"><p className="eyebrow">AGENDA PROFESIONAL</p><h1>Disponibilidad y agenda</h1><p>Define cuándo pueden reservar sesiones contigo.</p></div><section className="panel schedule-config"><h2>Horario semanal</h2>{['Lunes','Martes','Miércoles','Jueves','Viernes'].map((day,i)=><div key={day}><label><input type="checkbox" defaultChecked={i<4}/><strong>{day}</strong></label><select defaultValue={i<4?'09:00':'none'}><option value="none">No disponible</option><option value="09:00">9:00 AM</option><option value="10:00">10:00 AM</option></select><span>—</span><select defaultValue={i<4?'17:00':'none'}><option value="none">No disponible</option><option value="14:00">2:00 PM</option><option value="17:00">5:00 PM</option><option value="19:00">7:00 PM</option></select></div>)}</section><div className="schedule-rules"><section className="panel"><p className="eyebrow">DURACIÓN PREDETERMINADA</p><select defaultValue="50"><option value="30">30 minutos</option><option value="50">50 minutos</option><option value="60">60 minutos</option></select></section><section className="panel"><p className="eyebrow">ANTICIPACIÓN MÍNIMA</p><select defaultValue="24"><option value="12">12 horas</option><option value="24">24 horas</option><option value="48">48 horas</option></select></section></div><a className="primary save-native" href="#perfil-profesional">Guardar disponibilidad</a></div></section>}{editing&&<div className="modal-backdrop" onClick={()=>setEditing(false)}><section className="modal" onClick={e=>e.stopPropagation()}><button className="modal-close" onClick={()=>setEditing(false)}>×</button><p className="eyebrow">EDITAR PERFIL</p><h2>{data.name}</h2><label className="edit-field">Nombre completo<input defaultValue={data.name}/></label><label className="edit-field">Rol profesional<input value={data.subtitle} readOnly/></label>{data.license&&<label className="edit-field">Cédula profesional<input defaultValue={data.license.replace('Cédula profesional · ','')}/></label>}<button className="primary" onClick={()=>setEditing(false)}>Guardar cambios</button></section></div>}{activeSetting&&<div className="modal-backdrop" onClick={()=>setActiveSetting(null)}><section className="modal settings-modal" onClick={e=>e.stopPropagation()}><button className="modal-close" onClick={()=>setActiveSetting(null)}>×</button>{settingContent()}</section></div>}</div>
 }
 
-function Dashboard({ onLogout, initialRole }: { onLogout: () => void; initialRole: Role }) {
+function Dashboard({ onLogout, initialRole, profileName, freshProfile }: { onLogout: () => void; initialRole: Role; profileName: string; freshProfile: boolean }) {
   const [tab, setTab] = useState<Tab>('Inicio');
   const [role, setRole] = useState<Role>(initialRole);
   const [selectedChat, setSelectedChat] = useState('laura');
@@ -350,9 +372,10 @@ function Dashboard({ onLogout, initialRole }: { onLogout: () => void; initialRol
     document.addEventListener('click', handleContact, true);
     return () => document.removeEventListener('click', handleContact, true);
   }, [role]);
-  const identity = role==='Paciente'?{initial:'AR',name:'Ana Rodríguez'}:role==='Psicólogo'?{initial:'LM',name:'Laura Méndez'}:{initial:'DR',name:'Diego Ríos'};
-  return <main className="dashboard"><aside className="sidebar"><Mark compact/><nav>{tabs.map(item=><button className={tab===item.name?'active':''} onClick={()=>setTab(item.name)} key={item.name}><span>{item.icon}</span>{item.name}{item.name==='Mensajes'&&<i>2</i>}</button>)}</nav><div className="support"><span>♡</span><strong>{role==='Paciente'?'¿Necesitas apoyo?':'Comunicación segura'}</strong><p>{role==='Paciente'?'Tu equipo está disponible.':'Tienes 2 mensajes pendientes.'}</p><button onClick={()=>setTab('Mensajes')}>Contactar</button></div><button className="side-profile" onClick={()=>setTab('Perfil')}><div className="avatar">{identity.initial}</div><span><strong>{identity.name}</strong><small>{role}</small></span><b>•••</b></button></aside>
-    <section className="main"><header className="topbar"><div className="mobile-logo"><Mark compact/></div><label className="role-switch"><span>Vista</span><select value={role} onChange={e=>changeRole(e.target.value as Role)}><option>Paciente</option><option>Psicólogo</option><option>Psiquiatra</option></select></label><div className="notification-center"><button className="alert" aria-label="Abrir notificaciones" aria-expanded={notificationsOpen} onClick={()=>setNotificationsOpen(!notificationsOpen)}>♧{!notificationsRead&&<i></i>}</button>{notificationsOpen&&<section className="notification-panel"><header><div><p className="eyebrow">ACTUALIZACIONES</p><h2>Notificaciones</h2></div><button onClick={()=>setNotificationsOpen(false)} aria-label="Cerrar notificaciones">×</button></header><button className="notification-item unread" onClick={()=>{setNotificationsOpen(false);setTab('Mensajes')}}><span>✉</span><div><strong>Nuevo mensaje de Ana Rodríguez</strong><small>“Gracias por compartirlo, Laura.” · Hace 8 min</small></div></button><button className="notification-item" onClick={()=>{setNotificationsOpen(false);setTab('Inicio')}}><span>◷</span><div><strong>Próxima sesión en 35 minutos</strong><small>Ana Rodríguez · Psicoterapia individual</small></div></button><button className="notification-item"><span>✓</span><div><strong>Registro semanal completado</strong><small>Carla Vega · Ayer</small></div></button><button className="mark-read" onClick={()=>setNotificationsRead(true)}>{notificationsRead?'Todo está leído':'Marcar todas como leídas'}</button></section>}</div><button className="logout-mini" onClick={onLogout}>Salir</button></header><div className="view">{tab==='Inicio'?(role==='Paciente'?<Home onMessage={()=>openMessage('laura')} onProcess={()=>setTab('Proceso')} onTeam={()=>setTab('Equipo')}/>:<ProfessionalHome role={role} onMessages={()=>setTab('Mensajes')}/>):tab==='Proceso'?<Process/>:tab==='Equipo'?<Team onMessage={openMessage}/>:tab==='Mensajes'?<Messages key={selectedChat} initialChat={selectedChat}/>:<Profile role={role} onLogout={onLogout}/>}</div></section>
+  const patientInitials = profileName.split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase() || 'VC';
+  const identity = role==='Paciente'?{initial:patientInitials,name:profileName}:role==='Psicólogo'?{initial:'LM',name:'Laura Méndez'}:{initial:'DR',name:'Diego Ríos'};
+  return <main className="dashboard"><aside className="sidebar"><Mark compact/><nav>{tabs.map(item=><button className={tab===item.name?'active':''} onClick={()=>setTab(item.name)} key={item.name}><span>{item.icon}</span>{item.name}{item.name==='Mensajes'&&!freshProfile&&<i>2</i>}</button>)}</nav>{!freshProfile&&<div className="support"><span>♡</span><strong>{role==='Paciente'?'¿Necesitas apoyo?':'Comunicación segura'}</strong><p>{role==='Paciente'?'Tu equipo está disponible.':'Tienes 2 mensajes pendientes.'}</p><button onClick={()=>setTab('Mensajes')}>Contactar</button></div>}<button className="side-profile" onClick={()=>setTab('Perfil')}><div className="avatar">{identity.initial}</div><span><strong>{identity.name}</strong><small>{role}</small></span><b>•••</b></button></aside>
+    <section className="main"><header className="topbar"><div className="mobile-logo"><Mark compact/></div><label className="role-switch"><span>Perfil</span><select value={role} disabled><option>{role}</option></select></label><div className="notification-center">{!freshProfile&&<><button className="alert" aria-label="Abrir notificaciones" aria-expanded={notificationsOpen} onClick={()=>setNotificationsOpen(!notificationsOpen)}>♧{!notificationsRead&&<i></i>}</button>{notificationsOpen&&<section className="notification-panel"><header><div><p className="eyebrow">ACTUALIZACIONES</p><h2>Notificaciones</h2></div><button onClick={()=>setNotificationsOpen(false)} aria-label="Cerrar notificaciones">×</button></header></section>}</>}</div><button className="logout-mini" onClick={onLogout}>Salir</button></header><div className="view">{freshProfile&&role==='Paciente'?<FreshPatientView tab={tab} name={profileName}/>:tab==='Inicio'?(role==='Paciente'?<Home onMessage={()=>openMessage('laura')} onProcess={()=>setTab('Proceso')} onTeam={()=>setTab('Equipo')}/>:<ProfessionalHome role={role} onMessages={()=>setTab('Mensajes')}/>):tab==='Proceso'?<Process/>:tab==='Equipo'?<Team onMessage={openMessage}/>:tab==='Mensajes'?<Messages key={selectedChat} initialChat={selectedChat}/>:<Profile role={role} onLogout={onLogout}/>}</div></section>
     <nav className="mobile-nav">{tabs.map(item=><button className={tab===item.name?'active':''} onClick={()=>setTab(item.name)} key={item.name}><span>{item.icon}</span>{item.name}</button>)}</nav>
   </main>;
 }
@@ -360,24 +383,48 @@ function Dashboard({ onLogout, initialRole }: { onLogout: () => void; initialRol
 export default function App() {
   const [screen, setScreen] = useState<Screen>('login');
   const [role, setRole] = useState<Role>('Paciente');
+  const [profileName, setProfileName] = useState('');
+  const [freshProfile, setFreshProfile] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
   useEffect(() => {
     const supabase = createClient();
     const loadSession = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+        const { data: profile } = await supabase.from('profiles').select('role, full_name').eq('id', user.id).single();
         const actualRole: Role = profile?.role === 'psicologo' ? 'Psicólogo' : profile?.role === 'psiquiatra' ? 'Psiquiatra' : 'Paciente';
         setRole(actualRole);
-        setScreen(window.localStorage.getItem('vicino_onboarding_seen_v02') === 'true' ? 'app' : 'onboarding');
+        setProfileName(profile?.full_name?.trim() || '');
+        setFreshProfile(actualRole === 'Paciente');
+        setScreen(profile?.full_name?.trim() ? 'app' : 'profileSetup');
       }
       setCheckingSession(false);
     };
     loadSession();
   }, []);
-  const login = (nextRole: Role, isNewAccount = false) => { setRole(nextRole); const seen = window.localStorage.getItem('vicino_onboarding_seen_v02') === 'true'; setScreen(isNewAccount || !seen ? 'onboarding' : 'app'); };
+  const login = async (nextRole: Role) => {
+    setRole(nextRole);
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setScreen('login'); return; }
+    const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).single();
+    const name = profile?.full_name?.trim() || '';
+    setProfileName(name);
+    setFreshProfile(nextRole === 'Paciente');
+    setScreen(name ? 'app' : 'profileSetup');
+  };
+  const finishProfileSetup = async (name: string) => {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setScreen('login'); return; }
+    const { error } = await supabase.from('profiles').update({full_name:name,updated_at:new Date().toISOString()}).eq('id',user.id);
+    if (error) throw error;
+    setProfileName(name);
+    setFreshProfile(true);
+    setScreen(window.localStorage.getItem('vicino_onboarding_seen_v02') === 'true' ? 'app' : 'onboarding');
+  };
   const finishOnboarding = () => { window.localStorage.setItem('vicino_onboarding_seen_v02','true'); setScreen('app'); };
   const logout = async () => { await createClient().auth.signOut(); setScreen('login'); };
   if (checkingSession) return <main className="auth-loading">Preparando tu espacio…</main>;
-  return screen === 'login' ? <Login onNext={login}/> : screen === 'onboarding' ? <Onboarding onDone={finishOnboarding}/> : <Dashboard initialRole={role} onLogout={logout}/>;
+  return screen === 'login' ? <Login onNext={login}/> : screen === 'profileSetup' ? <ProfileSetup onDone={finishProfileSetup}/> : screen === 'onboarding' ? <Onboarding onDone={finishOnboarding}/> : <Dashboard initialRole={role} profileName={profileName} freshProfile={freshProfile} onLogout={logout}/>;
 }
