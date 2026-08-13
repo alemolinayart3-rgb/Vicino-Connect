@@ -1,0 +1,1 @@
+{"crons":[{"path":"/api/cron/suspend-stale","schedule":"15 6 * * *"}]}
