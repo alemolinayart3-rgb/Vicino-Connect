@@ -57,8 +57,8 @@
 /* Órbitas concéntricas: cada esfera conserva su radio respecto al centro. */
 @keyframes concentric-orbit{to{offset-distance:calc(var(--start) + 100%)}}
 .orbit-art{animation:none;transform:none}
-.orbit-art span,.orbit-art span:nth-child(1),.orbit-art span:nth-child(2),.orbit-art span:nth-child(3){top:0;left:0;animation:concentric-orbit var(--speed) linear infinite;offset-rotate:0deg;will-change:offset-distance}
-.orbit-art span:nth-child(1){--start:8%;--speed:28s;offset-path:circle(196px at 205px 205px);offset-distance:var(--start)}
-.orbit-art span:nth-child(2){--start:58%;--speed:22s;offset-path:circle(126px at 205px 205px);offset-distance:var(--start);animation-direction:reverse}
-.orbit-art span:nth-child(3){--start:31%;--speed:16s;offset-path:circle(56px at 205px 205px);offset-distance:var(--start)}
+.orbit-art span,.orbit-art span:nth-child(1),.orbit-art span:nth-child(2),.orbit-art span:nth-child(3){top:0;left:0;animation:concentric-orbit var(--speed) linear infinite;offset-anchor:center;offset-rotate:0deg;will-change:offset-distance}
+.orbit-art span:nth-child(1){--start:8%;--speed:28s;offset-path:circle(204.5px at 205px 205px);offset-distance:var(--start)}
+.orbit-art span:nth-child(2){--start:58%;--speed:22s;offset-path:circle(134.5px at 205px 205px);offset-distance:var(--start);animation-direction:reverse}
+.orbit-art span:nth-child(3){--start:31%;--speed:16s;offset-path:circle(64.5px at 205px 205px);offset-distance:var(--start)}
 @media(prefers-reduced-motion:reduce){.orbit-art span{animation:none!important}}
