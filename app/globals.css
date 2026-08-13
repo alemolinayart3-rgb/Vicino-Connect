@@ -75,3 +75,4 @@
 body>.care-invite-layer~.care-invite-layer{display:none}
 /* Estado amable para solicitudes entregadas dentro de Vicino. */
 .invite-status.pendiente{font-size:0;min-width:152px}.invite-status.pendiente::after{content:"Esperando aceptación";font-size:.78rem;white-space:nowrap}.invitation-row:has(.invite-status.pendiente)>div:first-child small{color:#62745a}.invitation-row:has(.invite-status.pendiente)>div:first-child small::before{content:"Solicitud disponible en Vicino · ";font-weight:600}
+.login-card{width:min(400px,100%)}.login-card h2{font-size:32px;margin-bottom:6px}.login-card>.muted{margin-bottom:20px}.role-picker-unified{width:270px;margin:0 0 18px;padding:3px}.role-picker-unified button{padding:8px 12px;font-size:12px}.login-card>label{margin-top:13px}.login-meta{margin:15px 0 18px}.signup{margin-top:18px}@media(max-width:680px){.role-picker-unified{width:100%}}

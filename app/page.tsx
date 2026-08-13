@@ -103,10 +103,12 @@ function Login({ onNext }: { onNext: (role: Role, isNewAccount?: boolean) => voi
     }
     const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single();
     const actualRole: Role = profile?.role === 'psicologo' ? 'Psicólogo' : profile?.role === 'psiquiatra' ? 'Psiquiatra' : 'Paciente';
-    if (actualRole !== role) {
+    const selectedProfessional = role !== 'Paciente';
+    const roleMatches = selectedProfessional ? actualRole !== 'Paciente' : actualRole === 'Paciente';
+    if (!roleMatches) {
       await supabase.auth.signOut();
       setLoading(false);
-      setMessage(`Estas credenciales corresponden al perfil ${actualRole}. Selecciona el acceso correcto.`);
+      setMessage(`Estas credenciales corresponden a una cuenta ${actualRole === 'Paciente' ? 'de Paciente' : 'Profesional'}. Selecciona el acceso correcto.`);
       return;
     }
     setLoading(false);
@@ -130,10 +132,9 @@ function Login({ onNext }: { onNext: (role: Role, isNewAccount?: boolean) => voi
           <p className="mini-brand">VICINO CONNECT</p>
           <h2>Qué gusto verte</h2>
           <p className="muted">Ingresa para continuar con tu proceso.</p>
-          <div className="role-picker" aria-label="Selecciona tu perfil">
-            {(['Paciente','Psicólogo','Psiquiatra'] as Role[]).map(item => (
-              <button key={item} className={role === item ? 'selected' : ''} onClick={() => selectRole(item)}>{item}</button>
-            ))}
+          <div className="role-picker role-picker-unified" aria-label="Selecciona tu tipo de acceso">
+            <button className={role === 'Paciente' ? 'selected' : ''} onClick={() => selectRole('Paciente')}>Paciente</button>
+            <button className={role !== 'Paciente' ? 'selected' : ''} onClick={() => selectRole('Psicólogo')}>Profesional</button>
           </div>
           <label>Correo electrónico<input value={email} onChange={e=>setEmail(e.target.value)} type="email" /></label>
           <label>Contraseña<div className="password"><input value={password} onChange={e=>setPassword(e.target.value)} type="password" /><span>○</span></div></label>
