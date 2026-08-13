@@ -59,6 +59,12 @@ function Login({ onNext }: { onNext: (role: Role, isNewAccount?: boolean) => voi
     }
     const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single();
     const actualRole: Role = profile?.role === 'psicologo' ? 'Psicólogo' : profile?.role === 'psiquiatra' ? 'Psiquiatra' : 'Paciente';
+    if (actualRole !== role) {
+      await supabase.auth.signOut();
+      setLoading(false);
+      setMessage(`Estas credenciales corresponden al perfil ${actualRole}. Selecciona el acceso correcto.`);
+      return;
+    }
     setLoading(false);
     onNext(actualRole, false);
   };
