@@ -198,3 +198,16 @@ input[type="date"]::-webkit-datetime-edit-day-field:focus,input[type="date"]::-w
 .appointment-date strong{font:700 1.25rem Sora}.appointment-date small{font-size:.65rem!important;color:var(--sage-dark)!important}
 .patient-appointments article>i{font-style:normal;padding:8px 12px;border-radius:999px;background:var(--blue-pale);color:var(--blue);font-size:.75rem;font-weight:700}
 @media(max-width:600px){.appointment-confirmation{padding:34px 20px}.confirmation-summary{grid-template-columns:1fr}.patient-appointments{padding:20px 16px}.patient-appointments article{grid-template-columns:auto 1fr}.patient-appointments article>button,.patient-appointments article>i{grid-column:2;width:100%}}
+
+/* Recursos interactivos del paciente y archivos privados. */
+.patient-resource-card{cursor:pointer;border-radius:12px;transition:background .18s ease,transform .18s ease}
+.patient-resource-card:hover{background:#fafbf8;transform:translateY(-1px)}
+.patient-resource-meta{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px}
+.patient-resource-meta small{margin-top:0!important}.patient-resource-meta button{min-width:112px}
+.patient-resource-backdrop{z-index:95}.patient-resource-modal{max-width:620px;max-height:calc(100vh - 40px);overflow-y:auto}
+.patient-resource-modal h2{margin-bottom:8px}.resource-guidance{color:var(--muted);line-height:1.55}
+.patient-resource-modal .edit-field{display:grid;gap:8px;margin-top:17px}.patient-resource-modal textarea{min-height:92px;padding:12px;border:1px solid var(--line);border-radius:10px;resize:vertical;font:inherit}
+.patient-resource-modal>.primary{width:100%;margin-top:18px}.resource-file-button{width:100%;display:grid;grid-template-columns:42px 1fr;align-items:center;gap:12px;margin:18px 0;padding:14px;border:1px solid var(--line);border-radius:12px;background:#f8faf7;text-align:left}
+.resource-file-button>span{width:38px;height:38px;display:grid;place-items:center;border-radius:50%;background:var(--blue-pale);color:var(--blue);font-size:1.2rem}.resource-file-button div{display:grid;gap:3px}.resource-file-button small,.resource-file-field small{color:var(--muted);font-size:.72rem}
+.resource-file-field input[type=file]{padding:9px;background:#f8faf7}.resource-file-field input::file-selector-button{margin-right:12px;padding:8px 12px;border:0;border-radius:8px;background:var(--blue-pale);color:var(--blue);font:700 .75rem Inter;cursor:pointer}
+@media(max-width:600px){.patient-resource-meta{align-items:stretch;flex-direction:column}.patient-resource-meta button{width:100%}.patient-resource-modal{max-height:calc(100vh - 20px)}}

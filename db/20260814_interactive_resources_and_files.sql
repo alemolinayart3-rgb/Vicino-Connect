@@ -1,0 +1,17 @@
+-- Vicino Connect: respuestas interactivas y archivos privados de acompañamiento.
+-- Ejecutar una sola vez en Supabase > SQL Editor.
+create table if not exists public.care_item_responses(id uuid primary key default gen_random_uuid(),care_item_id uuid not null references public.care_plan_items(id) on delete cascade,patient_id uuid not null references public.profiles(id) on delete cascade,response_date date not null default current_date,response jsonb not null default '{}'::jsonb,status text not null default 'draft' check(status in('draft','submitted')),submitted_at timestamptz,created_at timestamptz not null default now(),updated_at timestamptz not null default now(),unique(care_item_id,patient_id,response_date));
+alter table public.care_item_responses enable row level security;
+drop policy if exists "patient manages own care responses" on public.care_item_responses;
+create policy "patient manages own care responses" on public.care_item_responses for all using(patient_id=auth.uid() and exists(select 1 from public.care_plan_items i join public.care_assignments a on a.id=i.assignment_id where i.id=care_item_id and a.patient_id=auth.uid() and a.status='active')) with check(patient_id=auth.uid() and exists(select 1 from public.care_plan_items i join public.care_assignments a on a.id=i.assignment_id where i.id=care_item_id and a.patient_id=auth.uid() and a.status='active'));
+drop policy if exists "professional reads assigned care responses" on public.care_item_responses;
+create policy "professional reads assigned care responses" on public.care_item_responses for select using(exists(select 1 from public.care_plan_items i join public.care_assignments a on a.id=i.assignment_id where i.id=care_item_id and a.professional_id=auth.uid() and a.status='active'));
+grant select,insert,update on public.care_item_responses to authenticated;
+insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types) values('care-resources','care-resources',false,10485760,array['application/pdf','application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document','image/png','image/jpeg']) on conflict(id) do update set public=false,file_size_limit=10485760,allowed_mime_types=excluded.allowed_mime_types;
+drop policy if exists "professional uploads assigned resources" on storage.objects;
+create policy "professional uploads assigned resources" on storage.objects for insert to authenticated with check(bucket_id='care-resources' and exists(select 1 from public.care_assignments a where a.id=((storage.foldername(name))[1])::uuid and a.professional_id=auth.uid() and a.status='active'));
+drop policy if exists "care team reads assigned resources" on storage.objects;
+create policy "care team reads assigned resources" on storage.objects for select to authenticated using(bucket_id='care-resources' and exists(select 1 from public.care_assignments a where a.id=((storage.foldername(name))[1])::uuid and a.status='active' and(a.professional_id=auth.uid() or a.patient_id=auth.uid())));
+drop policy if exists "professional deletes assigned resources" on storage.objects;
+create policy "professional deletes assigned resources" on storage.objects for delete to authenticated using(bucket_id='care-resources' and exists(select 1 from public.care_assignments a where a.id=((storage.foldername(name))[1])::uuid and a.professional_id=auth.uid()));
+notify pgrst,'reload schema';
