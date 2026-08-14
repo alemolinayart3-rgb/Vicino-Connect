@@ -150,11 +150,15 @@ input[type="date"]::-webkit-datetime-edit-day-field:focus,input[type="date"]::-w
 .professional-agenda .agenda-month .days button{width:42px;height:42px;justify-self:center;border-radius:50%;background:#f0eee8;color:var(--ink);transition:transform .16s ease,background .16s ease,box-shadow .16s ease}
 .professional-agenda .agenda-month .days button:hover,.professional-agenda .agenda-month .days button:focus{outline:0;background:var(--sage-pale);box-shadow:0 0 0 2px #fff,0 0 0 4px var(--sage);transform:translateY(-1px)}
 .professional-agenda .agenda-month .days button.has-appointment{background:var(--blue-pale);color:var(--blue)}
+.professional-agenda .agenda-month .days button.selected-date,.professional-agenda .agenda-month .days button.selected-date:hover,.professional-agenda .agenda-month .days button.selected-date:focus{background:var(--blue);color:#fff;box-shadow:0 0 0 3px #fff,0 0 0 5px rgba(79,110,139,.34);transform:none}
+.professional-agenda .agenda-month .days button.selected-date:after{background:#fff}
 .professional-agenda .calendar-legend{max-width:540px;margin:22px auto 0}
 .professional-agenda .new-appointment{padding:32px;background:linear-gradient(155deg,#fff 0%,#fbfcfa 100%);border-top:3px solid var(--sage)}
 .professional-agenda .new-appointment h2{font-size:1.35rem;margin-bottom:4px}
 .professional-agenda .new-appointment select{appearance:none;background-color:#fff;background-image:linear-gradient(45deg,transparent 50%,var(--blue) 50%),linear-gradient(135deg,var(--blue) 50%,transparent 50%);background-position:calc(100% - 18px) 50%,calc(100% - 13px) 50%;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:38px}
 .professional-agenda .new-appointment select:focus,.professional-agenda .new-appointment input:focus,.professional-agenda .new-appointment textarea:focus{outline:0;border-color:var(--sage);box-shadow:0 0 0 3px rgba(167,181,154,.18)}
+.professional-agenda .appointment-fields label:first-child input{pointer-events:none;background:var(--sage-pale);color:var(--ink);font-weight:700;border-color:transparent}
+.professional-agenda .appointment-fields label:first-child input::-webkit-calendar-picker-indicator{display:none}
 .professional-agenda .new-appointment>.primary{min-height:48px;border-radius:11px}
 @media(max-width:980px){.professional-agenda .agenda-main-grid{grid-template-columns:1fr}.professional-agenda .agenda-month .days button{width:40px;height:40px}}
 @media(max-width:520px){.professional-agenda .agenda-month{padding:22px 14px}.professional-agenda .weekdays,.professional-agenda .agenda-month .days{gap:4px}.professional-agenda .agenda-month .days button{width:34px;height:34px}.professional-agenda .new-appointment{padding:22px}}
