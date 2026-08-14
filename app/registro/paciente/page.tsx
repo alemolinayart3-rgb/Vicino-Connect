@@ -11,36 +11,16 @@ function PatientRegistration(){
  const register=async()=>{
   setError('');
   if(form.name.trim().length<2||!/^\S+@\S+\.\S+$/.test(form.email)||form.phone.trim().length<8||!form.birthDate||form.password.length<8){setError('Completa todos los datos. La contraseña debe tener al menos 8 caracteres.');return}
-  if(!token)return;setSubmitting(true);const client=createClient();
-  const completeExistingAccount=async()=>{
-   const {error:updateError}=await client.auth.updateUser({password:form.password,data:{full_name:form.name.trim(),phone:form.phone.trim(),birth_date:form.birthDate,invitation_token:token,requested_role:'paciente'}});
-   if(updateError){setError(updateError.message);return false}
-   const {data:{user}}=await client.auth.getUser();
-   if(user){
-    const {error:profileError}=await client.from('profiles').update({full_name:form.name.trim(),phone:form.phone.trim(),birth_date:form.birthDate}).eq('id',user.id);
-    if(profileError){setError(profileError.message);return false}
-    const {error:linkError}=await client.rpc('accept_patient_invitation',{invitation_token:token});
-    if(linkError){setError(linkError.message);return false}
-   }
-   return true;
-  };
-  if(invitedUser){
-   const completed=await completeExistingAccount();setSubmitting(false);
-   if(completed)window.location.assign('/');return;
+  if(!token)return;setSubmitting(true);
+  try{
+   const response=await fetch('/api/register/patient',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,...form})});
+   const result=await response.json();setSubmitting(false);
+   if(!response.ok){setError(result.error||'No pudimos completar el registro.');return}
+   if(result.requiresEmail){setSent(true);return}
+   window.location.assign('/');return;
+  }catch{
+   setSubmitting(false);setError('No pudimos conectar desde este navegador. Toca Compartir y elige “Abrir en Safari”, o inténtalo de nuevo.');return;
   }
-  const destination=`/registro/paciente?token=${token}`;
-  const normalizedEmail=form.email.trim().toLowerCase();
-  const {data:signupData,error:signupError}=await client.auth.signUp({email:normalizedEmail,password:form.password,options:{emailRedirectTo:`${window.location.origin}/auth/callback?next=${encodeURIComponent(destination)}`,data:{full_name:form.name.trim(),phone:form.phone.trim(),birth_date:form.birthDate,invitation_token:token,requested_role:'paciente'}}});
-  if(signupError){setSubmitting(false);setError(signupError.message);return}
-  const existingAccount=Boolean(signupData.user&&signupData.user.identities?.length===0);
-  if(existingAccount){
-   const {error:loginError}=await client.auth.signInWithPassword({email:normalizedEmail,password:form.password});
-   if(loginError){setSubmitting(false);setError('Este correo ya tiene una cuenta. Escribe la contraseña que usas para entrar a Vicino; no enviaremos otro correo de confirmación.');return}
-   const completed=await completeExistingAccount();setSubmitting(false);
-   if(completed)window.location.assign('/');return;
-  }
-  if(signupData.session){const completed=await completeExistingAccount();setSubmitting(false);if(completed)window.location.assign('/');return}
-  setSubmitting(false);setSent(true);
  };
  if(loading)return <main className="invite-shell single"><section className="invite-registration-card"><p>Validando invitación…</p></section></main>;
  if(invalid)return <main className="invite-shell single"><section className="invite-registration-card invite-invalid"><div className="invite-symbol">!</div><p className="eyebrow">ENLACE NO DISPONIBLE</p><h1>No pudimos abrir la invitación</h1><p>{invalid}</p><a className="primary" href="/">Volver a Vicino</a></section></main>;
