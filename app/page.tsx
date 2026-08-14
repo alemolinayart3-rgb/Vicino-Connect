@@ -176,6 +176,7 @@ function Login({ onNext }: { onNext: (role: Role, isNewAccount?: boolean) => voi
     const requestedNext = params.get('next');
     if (requestedEmail) setEmail(requestedEmail);
     if (requestedNext?.startsWith('/') && !requestedNext.startsWith('//')) setReturnTo(requestedNext);
+    if (params.get('recover') === '1') setMessage('Escribe tu correo y toca “Olvidé mi contraseña” para recibir un enlace nuevo.');
   }, []);
   const selectRole = (nextRole: Role) => { setRole(nextRole); setEmail(demoEmails[nextRole]); };
   const authenticate = async (createAccount = false) => {
@@ -232,7 +233,7 @@ function Login({ onNext }: { onNext: (role: Role, isNewAccount?: boolean) => voi
     setLoading(true);
     const supabase = createClient();
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/callback?next=/restablecer-contrasena`,
+      redirectTo: `${window.location.origin}/restablecer-contrasena`,
     });
     setLoading(false);
     setMessage(error ? 'No pudimos enviar el enlace. Inténtalo nuevamente en unos minutos.' : 'Te enviamos un enlace para crear una nueva contraseña. Revisa también la carpeta de spam.');
