@@ -3,18 +3,97 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 
-type Patient={assignment_id:string;full_name:string;status:string};
-type QuestionType="open"|"single_choice"|"scale"|"yes_no";
-type Question={id:string;prompt:string;type:QuestionType;options:string[];required:boolean};
-const newQuestion=(type:QuestionType="open"):Question=>({id:crypto.randomUUID(),prompt:"",type,options:type==="single_choice"?["Opción 1","Opción 2"]:[],required:true});
+type Patient = { assignment_id: string; full_name: string; status: string };
+type QuestionType = "open" | "single_choice" | "scale" | "yes_no";
+type Question = { id: string; prompt: string; type: QuestionType; options: string[]; required: boolean };
+type ImportResult = { title: string; instructions: string; frequency: string; questions: Question[]; error?: string };
 
-export default function ProfessionalResourceCreator({medical=false}:{medical?:boolean}){
- const [kind,setKind]=useState<string|null>(null),[patients,setPatients]=useState<Patient[]>([]),[assignmentId,setAssignmentId]=useState(''),[title,setTitle]=useState(''),[instructions,setInstructions]=useState(''),[frequency,setFrequency]=useState('once'),[questions,setQuestions]=useState<Question[]>([newQuestion()]),[content,setContent]=useState(''),[file,setFile]=useState<File|null>(null),[saving,setSaving]=useState(false),[message,setMessage]=useState('');
- const resources=medical?[['medical_indication','Indicaciones','Comunica indicaciones de forma clara.'],['check_in','Seguimiento de tolerancia','Crea un registro que el paciente pueda responder.'],['treatment_review','Revisión de tratamiento','Prepara recordatorios para la próxima consulta.']]:[['activity','Ejercicios','Actividades para acompañar entre sesiones.'],['check_in','Registros breves','Preguntas diarias o semanales.'],['questionnaire','Encuestas','Crea formularios interactivos y revisa sus respuestas.'],['educational_material','Materiales','Comparte lecturas, documentos o imágenes.']];
- useEffect(()=>{(async()=>{const {data}=await createClient().rpc('my_assigned_patients');const active=((data as Patient[])||[]).filter(item=>item.status==='active');setPatients(active);setAssignmentId(active[0]?.assignment_id||'')})()},[]);
- const open=(type:string,label:string)=>{setKind(type);setTitle(label);setInstructions('');setFrequency('once');setQuestions([newQuestion()]);setContent('');setFile(null);setMessage('')};
- const updateQuestion=(id:string,patch:Partial<Question>)=>setQuestions(current=>current.map(question=>question.id===id?{...question,...patch}:question));
- const move=(index:number,direction:-1|1)=>setQuestions(current=>{const next=[...current],target=index+direction;if(target<0||target>=next.length)return current;[next[index],next[target]]=[next[target],next[index]];return next});
- const save=async()=>{if(!kind||!assignmentId||title.trim().length<3)return;if(kind==='questionnaire'&&questions.some(question=>question.prompt.trim().length<3)){setMessage('Completa el texto de todas las preguntas.');return}setSaving(true);setMessage('Guardando…');const client=createClient();const {data:{user}}=await client.auth.getUser();let fileData:{}={};if(file){if(file.size>10485760){setSaving(false);setMessage('El archivo no puede superar 10 MB.');return}const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'-'),path=`${assignmentId}/${crypto.randomUUID()}-${safe}`;const {error}=await client.storage.from('care-resources').upload(path,file);if(error){setSaving(false);setMessage(error.message.includes('Bucket not found')?'Falta activar el módulo de archivos privados en Supabase.':error.message);return}fileData={file_path:path,file_name:file.name,file_type:file.type}}const payload=kind==='questionnaire'?{questions:questions.map(question=>({...question,prompt:question.prompt.trim(),options:question.options.filter(Boolean)})),...fileData}:kind==='check_in'?{prompt:content.trim(),...fileData}:kind==='educational_material'?{url:content.trim(),...fileData}:{prompt:content.trim(),...fileData};const itemKind=kind==='check_in'?'check_in':'activity';const {error}=await client.from('care_plan_items').insert({assignment_id:assignmentId,created_by:user?.id,kind:itemKind,resource_type:kind,title:title.trim(),instructions:instructions.trim()||null,content:payload,frequency});setSaving(false);if(error){setMessage(error.message);return}setMessage('Asignación creada. Ya está disponible para el paciente.');setTimeout(()=>setKind(null),1100)};
- return <div className="page-content professional-workspace"><div className="page-heading"><p className="eyebrow">{medical?'GESTIÓN CLÍNICA':'BIBLIOTECA DE ACOMPAÑAMIENTO'}</p><h1>{medical?'Tratamientos':'Recursos'}</h1><p>{medical?'Organiza indicaciones y seguimientos con límites claros.':'Crea actividades interactivas y asígnalas a cada paciente.'}</p></div><div className="resource-grid">{resources.map(([type,label,description])=><section className="panel resource-card" key={type}><span>◇</span><h2>{label}</h2><p>{description}</p><button className="secondary" onClick={()=>open(type,label)}>Crear y asignar</button></section>)}</div>{kind&&<div className="modal-backdrop" onClick={()=>setKind(null)}><section className="modal resource-builder-modal" onClick={event=>event.stopPropagation()}><button className="modal-close" onClick={()=>setKind(null)}>×</button><p className="eyebrow">CREAR Y ASIGNAR</p><h2>{kind==='questionnaire'?'Nueva encuesta':title}</h2><div className="builder-fields"><label>Paciente<select value={assignmentId} onChange={event=>setAssignmentId(event.target.value)}>{patients.map(patient=><option value={patient.assignment_id} key={patient.assignment_id}>{patient.full_name}</option>)}</select></label><label>Título<input value={title} onChange={event=>setTitle(event.target.value)}/></label><label>Frecuencia<select value={frequency} onChange={event=>setFrequency(event.target.value)}><option value="once">Una vez</option><option value="daily">Diario</option><option value="weekly">Semanal</option></select></label></div>{kind==='questionnaire'?<div className="question-builder"><header><div><p className="eyebrow">PREGUNTAS</p><strong>{questions.length} {questions.length===1?'pregunta':'preguntas'}</strong></div><button className="secondary" onClick={()=>setQuestions(current=>[...current,newQuestion()])}>+ Añadir pregunta</button></header>{questions.map((question,index)=><article key={question.id}><div className="question-order"><span>{index+1}</span><button disabled={index===0} onClick={()=>move(index,-1)}>↑</button><button disabled={index===questions.length-1} onClick={()=>move(index,1)}>↓</button></div><div><label>Pregunta<input value={question.prompt} onChange={event=>updateQuestion(question.id,{prompt:event.target.value})} placeholder="Escribe la pregunta…"/></label><div className="question-settings"><label>Tipo<select value={question.type} onChange={event=>{const type=event.target.value as QuestionType;updateQuestion(question.id,{type,options:type==='single_choice'&&question.options.length===0?['Opción 1','Opción 2']:question.options})}}><option value="open">Respuesta abierta</option><option value="single_choice">Opción múltiple</option><option value="scale">Escala del 1 al 5</option><option value="yes_no">Sí o no</option></select></label><label className="required-toggle"><input type="checkbox" checked={question.required} onChange={event=>updateQuestion(question.id,{required:event.target.checked})}/> Obligatoria</label></div>{question.type==='single_choice'&&<label>Opciones, una por línea<textarea value={question.options.join('\n')} onChange={event=>updateQuestion(question.id,{options:event.target.value.split('\n')})}/></label>}</div><button className="remove-question" disabled={questions.length===1} onClick={()=>setQuestions(current=>current.filter(item=>item.id!==question.id))}>Eliminar</button></article>)}</div>:<label className="builder-long-field">Contenido o pregunta<textarea value={content} onChange={event=>setContent(event.target.value)} placeholder="Escribe el contenido que verá el paciente…"/></label>}<label className="builder-long-field">Indicaciones, opcional<textarea value={instructions} onChange={event=>setInstructions(event.target.value)} placeholder="Explica cómo realizar esta actividad."/></label><label className="builder-file-field">Archivo de apoyo, opcional<input type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" onChange={event=>setFile(event.target.files?.[0]||null)}/><small>PDF, Word o imagen · máximo 10 MB</small></label>{message&&<p className="invite-feedback">{message}</p>}<button className="primary builder-submit" disabled={saving||!assignmentId} onClick={save}>{saving?'Asignando…':'Asignar al paciente'}</button></section></div>}</div>
+const newQuestion = (type: QuestionType = "open"): Question => ({
+  id: crypto.randomUUID(), prompt: "", type,
+  options: type === "single_choice" ? ["Opción 1", "Opción 2"] : [], required: true,
+});
+
+export default function ProfessionalResourceCreator({ medical = false }: { medical?: boolean }) {
+  const [kind, setKind] = useState<string | null>(null);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [assignmentId, setAssignmentId] = useState("");
+  const [title, setTitle] = useState("");
+  const [instructions, setInstructions] = useState("");
+  const [frequency, setFrequency] = useState("once");
+  const [questions, setQuestions] = useState<Question[]>([newQuestion()]);
+  const [content, setContent] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [message, setMessage] = useState("");
+  const resources = medical
+    ? [["medical_indication", "Indicaciones", "Comunica indicaciones de forma clara."], ["check_in", "Seguimiento de tolerancia", "Crea un registro que el paciente pueda responder."], ["treatment_review", "Revisión de tratamiento", "Prepara recordatorios para la próxima consulta."]]
+    : [["activity", "Ejercicios", "Actividades para acompañar entre sesiones."], ["check_in", "Registros breves", "Preguntas diarias o semanales."], ["questionnaire", "Encuestas", "Crea formularios interactivos y revisa sus respuestas."], ["educational_material", "Materiales", "Comparte lecturas, documentos o imágenes."]];
+
+  useEffect(() => { (async () => {
+    const { data } = await createClient().rpc("my_assigned_patients");
+    const active = ((data as Patient[]) || []).filter((item) => item.status === "active");
+    setPatients(active); setAssignmentId(active[0]?.assignment_id || "");
+  })(); }, []);
+
+  const open = (type: string, label: string) => {
+    setKind(type); setTitle(label); setInstructions(""); setFrequency("once");
+    setQuestions([newQuestion()]); setContent(""); setFile(null); setMessage("");
+  };
+  const updateQuestion = (id: string, patch: Partial<Question>) => setQuestions((current) => current.map((question) => question.id === id ? { ...question, ...patch } : question));
+  const move = (index: number, direction: -1 | 1) => setQuestions((current) => {
+    const next = [...current], target = index + direction;
+    if (target < 0 || target >= next.length) return current;
+    [next[index], next[target]] = [next[target], next[index]]; return next;
+  });
+
+  const importWord = async (wordFile: File) => {
+    setImporting(true); setMessage("Leyendo y convirtiendo el cuestionario…");
+    const body = new FormData(); body.append("file", wordFile);
+    try {
+      const response = await fetch("/api/resources/import-docx", { method: "POST", body });
+      const result = await response.json() as ImportResult;
+      if (!response.ok) { setMessage(result.error || "No pude importar este documento."); return; }
+      setTitle(result.title); setInstructions(result.instructions); setFrequency(result.frequency); setQuestions(result.questions);
+      setMessage(`Importamos ${result.questions.length} preguntas. Revísalas y edítalas antes de asignar.`);
+    } catch {
+      setMessage("No pude conectar con el importador. Intenta nuevamente.");
+    } finally { setImporting(false); }
+  };
+
+  const save = async () => {
+    if (!kind || !assignmentId || title.trim().length < 3) return;
+    if (kind === "questionnaire" && questions.some((question) => question.prompt.trim().length < 3)) { setMessage("Completa el texto de todas las preguntas."); return; }
+    setSaving(true); setMessage("Guardando…");
+    const client = createClient(); const { data: { user } } = await client.auth.getUser(); let fileData = {};
+    if (file) {
+      if (file.size > 10485760) { setSaving(false); setMessage("El archivo no puede superar 10 MB."); return; }
+      const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "-"), path = `${assignmentId}/${crypto.randomUUID()}-${safe}`;
+      const { error } = await client.storage.from("care-resources").upload(path, file);
+      if (error) { setSaving(false); setMessage(error.message.includes("Bucket not found") ? "Falta activar el módulo de archivos privados en Supabase." : error.message); return; }
+      fileData = { file_path: path, file_name: file.name, file_type: file.type };
+    }
+    const payload = kind === "questionnaire"
+      ? { questions: questions.map((question) => ({ ...question, prompt: question.prompt.trim(), options: question.options.filter(Boolean) })), ...fileData }
+      : kind === "check_in" ? { prompt: content.trim(), ...fileData }
+      : kind === "educational_material" ? { url: content.trim(), ...fileData } : { prompt: content.trim(), ...fileData };
+    const itemKind = kind === "check_in" ? "check_in" : "activity";
+    const { error } = await client.from("care_plan_items").insert({ assignment_id: assignmentId, created_by: user?.id, kind: itemKind, resource_type: kind, title: title.trim(), instructions: instructions.trim() || null, content: payload, frequency });
+    setSaving(false); if (error) { setMessage(error.message); return; }
+    setMessage("Asignación creada. Ya está disponible para el paciente."); setTimeout(() => setKind(null), 1100);
+  };
+
+  return <div className="page-content professional-workspace">
+    <div className="page-heading"><p className="eyebrow">{medical ? "GESTIÓN CLÍNICA" : "BIBLIOTECA DE ACOMPAÑAMIENTO"}</p><h1>{medical ? "Tratamientos" : "Recursos"}</h1><p>{medical ? "Organiza indicaciones y seguimientos con límites claros." : "Crea actividades interactivas y asígnalas a cada paciente."}</p></div>
+    <div className="resource-grid">{resources.map(([type, label, description]) => <section className="panel resource-card" key={type}><span>◇</span><h2>{label}</h2><p>{description}</p><button className="secondary" onClick={() => open(type, label)}>Crear y asignar</button></section>)}</div>
+    {kind && <div className="modal-backdrop" onClick={() => setKind(null)}><section className="modal resource-builder-modal" onClick={(event) => event.stopPropagation()}>
+      <button className="modal-close" onClick={() => setKind(null)}>×</button><p className="eyebrow">CREAR Y ASIGNAR</p><h2>{kind === "questionnaire" ? "Nueva encuesta" : title}</h2>
+      {kind === "questionnaire" && <label className={`questionnaire-import ${importing ? "loading" : ""}`}><span><strong>{importing ? "Importando Word…" : "Importar cuestionario desde Word"}</strong><small>Vicino detectará el título, las preguntas y sus escalas. Podrás revisar todo antes de asignarlo.</small></span><i>{importing ? "…" : "Subir .docx"}</i><input type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" disabled={importing} onChange={(event) => { const selected = event.target.files?.[0]; if (selected) void importWord(selected); event.target.value = ""; }} /></label>}
+      <div className="builder-fields"><label>Paciente<select value={assignmentId} onChange={(event) => setAssignmentId(event.target.value)}>{patients.map((patient) => <option value={patient.assignment_id} key={patient.assignment_id}>{patient.full_name}</option>)}</select></label><label>Título<input value={title} onChange={(event) => setTitle(event.target.value)} /></label><label>Frecuencia<select value={frequency} onChange={(event) => setFrequency(event.target.value)}><option value="once">Una vez</option><option value="daily">Diario</option><option value="weekly">Semanal</option></select></label></div>
+      {kind === "questionnaire" ? <div className="question-builder"><header><div><p className="eyebrow">PREGUNTAS</p><strong>{questions.length} {questions.length === 1 ? "pregunta" : "preguntas"}</strong></div><button className="secondary" onClick={() => setQuestions((current) => [...current, newQuestion()])}>+ Añadir pregunta</button></header>{questions.map((question, index) => <article key={question.id}><div className="question-order"><span>{index + 1}</span><button disabled={index === 0} onClick={() => move(index, -1)}>↑</button><button disabled={index === questions.length - 1} onClick={() => move(index, 1)}>↓</button></div><div><label>Pregunta<input value={question.prompt} onChange={(event) => updateQuestion(question.id, { prompt: event.target.value })} placeholder="Escribe la pregunta…" /></label><div className="question-settings"><label>Tipo<select value={question.type} onChange={(event) => { const type = event.target.value as QuestionType; updateQuestion(question.id, { type, options: type === "single_choice" && question.options.length === 0 ? ["Opción 1", "Opción 2"] : question.options }); }}><option value="open">Respuesta abierta</option><option value="single_choice">Opción múltiple</option><option value="scale">Escala del 1 al 5</option><option value="yes_no">Sí o no</option></select></label><label className="required-toggle"><input type="checkbox" checked={question.required} onChange={(event) => updateQuestion(question.id, { required: event.target.checked })} /> Obligatoria</label></div>{question.type === "single_choice" && <label>Opciones, una por línea<textarea value={question.options.join("\n")} onChange={(event) => updateQuestion(question.id, { options: event.target.value.split("\n") })} /></label>}</div><button className="remove-question" disabled={questions.length === 1} onClick={() => setQuestions((current) => current.filter((item) => item.id !== question.id))}>Eliminar</button></article>)}</div> : <label className="builder-long-field">Contenido o pregunta<textarea value={content} onChange={(event) => setContent(event.target.value)} placeholder="Escribe el contenido que verá el paciente…" /></label>}
+      <label className="builder-long-field">Indicaciones, opcional<textarea value={instructions} onChange={(event) => setInstructions(event.target.value)} placeholder="Explica cómo realizar esta actividad." /></label>
+      <label className="builder-file-field">Archivo de apoyo, opcional<input type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" onChange={(event) => setFile(event.target.files?.[0] || null)} /><small>PDF, Word o imagen · máximo 10 MB</small></label>
+      {message && <p className="invite-feedback">{message}</p>}<button className="primary builder-submit" disabled={saving || importing || !assignmentId} onClick={save}>{saving ? "Asignando…" : "Asignar al paciente"}</button>
+    </section></div>}
+  </div>;
 }
