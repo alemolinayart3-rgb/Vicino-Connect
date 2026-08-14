@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { createClient } from "@/utils/supabase/client";
 
 type Screen = "login" | "onboarding" | "profileSetup" | "app";
-type Tab = "Inicio" | "Pacientes" | "Proceso" | "Equipo" | "Mensajes" | "Perfil";
+type Tab = "Inicio" | "Pacientes" | "Proceso" | "Equipo" | "Seguimiento" | "Recursos" | "Mensajes" | "Perfil";
 type Role = "Paciente" | "Psicólogo" | "Psiquiatra";
 
 const tabs: { name: Tab; icon: string }[] = [
@@ -15,6 +15,13 @@ const tabs: { name: Tab; icon: string }[] = [
   { name: "Equipo", icon: "♡" },
   { name: "Mensajes", icon: "✉" },
   { name: "Perfil", icon: "○" },
+];
+
+const professionalTabs=(role:Role):{name:Tab;label:string;icon:string}[]=>[
+ {name:'Inicio',label:'Inicio',icon:'⌂'},{name:'Pacientes',label:'Pacientes',icon:'◎'},
+ {name:'Seguimiento',label:role==='Psiquiatra'?'Seguimiento médico':'Seguimiento',icon:'◒'},
+ {name:'Recursos',label:role==='Psiquiatra'?'Tratamientos':'Recursos',icon:'◇'},
+ {name:'Mensajes',label:'Mensajes',icon:'✉'},{name:'Perfil',label:'Perfil',icon:'○'}
 ];
 
 type Invitation = { id:string; token:string; email:string; invitee_name:string|null; status:string; expires_at:string; created_at:string };
@@ -81,6 +88,12 @@ function ProfessionalActions(){
  useEffect(()=>{setMounted(true);(async()=>{const {data}=await createClient().rpc('my_care_team');setTeam((data as CareProfessional[])||[])})();const click=(event:MouseEvent)=>{const button=(event.target as HTMLElement).closest('button');const card=button?.closest('.real-team-card');if(!button||!card)return;const name=card.querySelector('h2')?.textContent||'';const member=team.find(item=>item.full_name===name);if(!member)return;if(button.textContent?.includes('Enviar mensaje'))window.dispatchEvent(new CustomEvent('vicino:professional-message',{detail:{chatId:member.role==='psicologo'?'laura':'diego'}}));if(button.textContent?.includes('Ver perfil'))setProfile(member)};document.addEventListener('click',click);return()=>document.removeEventListener('click',click)},[team]);
  if(!mounted||!profile)return null;
  return createPortal(<div className="modal-backdrop professional-profile-overlay" onClick={()=>setProfile(null)}><section className="modal professional-public-profile" role="dialog" aria-modal="true" aria-label={`Perfil de ${profile.full_name}`} onClick={e=>e.stopPropagation()}><button className="modal-close" onClick={()=>setProfile(null)}>×</button><div className={`avatar xl ${profile.role==='psicologo'?'sage':'blue'}`}>{profile.full_name.split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase()}</div><p className="eyebrow">PROFESIONAL VINCULADO</p><h2>{profile.full_name}</h2><p>{profile.role==='psicologo'?'Profesional de Psicología':'Profesional de Psiquiatría'}</p><i className={`care-link-status ${profile.status}`}>{profile.status==='active'?'Vínculo activo':'Vínculo suspendido'}</i><section className="profile-boundary"><strong>Acceso con límites claros</strong><p>{profile.role==='psicologo'?'Puede acompañar tu proceso psicológico, sin acceso a indicaciones ni medicación.':'Puede gestionar indicaciones médicas, sin acceso a notas privadas de psicoterapia.'}</p></section><button className="primary" disabled={profile.status!=='active'} onClick={()=>{setProfile(null);window.dispatchEvent(new CustomEvent('vicino:professional-message',{detail:{chatId:profile.role==='psicologo'?'laura':'diego'}}))}}>Enviar mensaje</button></section></div>,document.body);
+}
+
+function ProfessionalWorkspace({role,section}:{role:Role;section:'Seguimiento'|'Recursos'}){
+ const medical=role==='Psiquiatra',tracking=section==='Seguimiento';
+ if(tracking)return <div className="page-content professional-workspace"><div className="page-heading"><p className="eyebrow">{medical?'CONTINUIDAD MÉDICA':'CONTINUIDAD DEL ACOMPAÑAMIENTO'}</p><h1>{medical?'Seguimiento médico':'Seguimiento'}</h1><p>{medical?'Revisa los registros relevantes antes de cada consulta.':'Identifica qué necesita atención sin convertir el proceso en una lista de pendientes.'}</p></div><div className="stats follow-up-stats"><section><span>Registros por revisar</span><strong>0</strong><small>Sin novedades</small></section><section><span>{medical?'Tolerancia reportada':'Actividades compartidas'}</span><strong>0</strong><small>Esta semana</small></section><section><span>Próximas consultas</span><strong>0</strong><small>Hoy</small></section></div><section className="panel empty-state"><h2>Todo está al día</h2><p>{medical?'Los reportes de sueño, adherencia o efectos aparecerán aquí.':'Las respuestas a actividades, registros y cuestionarios aparecerán aquí.'}</p><button className="secondary" onClick={()=>window.dispatchEvent(new CustomEvent('vicino:open-patients'))}>Ver pacientes</button></section></div>;
+ return <div className="page-content professional-workspace"><div className="page-heading"><p className="eyebrow">{medical?'GESTIÓN CLÍNICA':'BIBLIOTECA DE ACOMPAÑAMIENTO'}</p><h1>{medical?'Tratamientos':'Recursos'}</h1><p>{medical?'Organiza indicaciones y seguimientos con límites de acceso claros.':'Prepara recursos reutilizables y asígnalos desde el perfil de cada paciente.'}</p></div><div className="resource-grid">{(medical?[['Indicaciones','Plantillas para comunicar indicaciones médicas.'],['Seguimiento de tolerancia','Registros que el paciente puede responder.'],['Revisión de tratamiento','Recordatorios para próximas consultas.']]:[['Actividades acordadas','Ejercicios para acompañar entre sesiones.'],['Registros breves','Check-ins diarios o semanales.'],['Cuestionarios','Instrumentos y formularios reutilizables.'],['Material psicoeducativo','Recursos de lectura y práctica.']]).map(([title,text])=><section className="panel resource-card" key={title}><span>◇</span><h2>{title}</h2><p>{text}</p><button className="secondary" onClick={()=>window.dispatchEvent(new CustomEvent('vicino:open-patients'))}>Asignar a paciente</button></section>)}</div></div>;
 }
 
 function Login({ onNext }: { onNext: (role: Role, isNewAccount?: boolean) => void }) {
@@ -426,7 +439,7 @@ function Dashboard({ onLogout, initialRole, profileName, freshProfile }: { onLog
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notificationsRead, setNotificationsRead] = useState(false);
   const [supportVisible, setSupportVisible] = useState(true);
-  const visibleTabs = role==='Psicólogo' ? tabs : tabs.filter(item=>item.name!=='Pacientes');
+  const visibleTabs:{name:Tab;label:string;icon:string}[] = role==='Paciente' ? tabs.filter(item=>item.name!=='Pacientes').map(item=>({...item,label:item.name})) : professionalTabs(role);
   useEffect(() => {
     const seen = window.localStorage.getItem('vicino_support_seen') === 'true';
     setSupportVisible(!seen);
@@ -435,6 +448,7 @@ function Dashboard({ onLogout, initialRole, profileName, freshProfile }: { onLog
   const changeRole = (next: Role) => { setRole(next); setTab('Inicio'); };
   const openMessage = (chatId: string) => { setSelectedChat(chatId); setTab('Mensajes'); };
   useEffect(()=>{const open=(event:Event)=>{const chatId=(event as CustomEvent<{chatId:string}>).detail?.chatId;if(chatId)openMessage(chatId)};window.addEventListener('vicino:professional-message',open);return()=>window.removeEventListener('vicino:professional-message',open)},[]);
+  useEffect(()=>{const open=()=>setTab('Pacientes');window.addEventListener('vicino:open-patients',open);return()=>window.removeEventListener('vicino:open-patients',open)},[]);
   useEffect(() => {
     const handleContact = (event: MouseEvent) => {
       const button = (event.target as HTMLElement).closest('button');
@@ -451,9 +465,9 @@ function Dashboard({ onLogout, initialRole, profileName, freshProfile }: { onLog
   }, [role]);
   const patientInitials = profileName.split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase() || 'VC';
   const identity = role==='Paciente'?{initial:patientInitials,name:profileName}:role==='Psicólogo'?{initial:'LM',name:'Laura Méndez'}:{initial:'DR',name:'Diego Ríos'};
-  return <main className="dashboard"><aside className="sidebar"><Mark compact/><nav>{visibleTabs.map(item=><button className={tab===item.name?'active':''} onClick={()=>setTab(item.name)} key={item.name}><span>{item.icon}</span>{item.name}{item.name==='Mensajes'&&!freshProfile&&<i>2</i>}</button>)}</nav>{!freshProfile&&<div className="support"><span>♡</span><strong>{role==='Paciente'?'¿Necesitas apoyo?':'Comunicación segura'}</strong><p>{role==='Paciente'?'Tu equipo está disponible.':'Tienes 2 mensajes pendientes.'}</p><button onClick={()=>setTab('Mensajes')}>Contactar</button></div>}<button className="side-profile" onClick={()=>setTab('Perfil')}><div className="avatar">{identity.initial}</div><span><strong>{identity.name}</strong><small>{role}</small></span><b>•••</b></button></aside>
-    <section className="main"><header className="topbar"><div className="mobile-logo"><Mark compact/></div><label className="role-switch"><span>Perfil</span><select value={role} disabled><option>{role}</option></select></label><div className="notification-center">{!freshProfile&&<><button className="alert" aria-label="Abrir notificaciones" aria-expanded={notificationsOpen} onClick={()=>setNotificationsOpen(!notificationsOpen)}>♧{!notificationsRead&&<i></i>}</button>{notificationsOpen&&<section className="notification-panel"><header><div><p className="eyebrow">ACTUALIZACIONES</p><h2>Notificaciones</h2></div><button onClick={()=>setNotificationsOpen(false)} aria-label="Cerrar notificaciones">×</button></header></section>}</>}</div><button className="logout-mini" onClick={onLogout}>Salir</button></header><div className="view">{freshProfile&&role==='Paciente'?<FreshPatientView tab={tab} name={profileName}/>:tab==='Inicio'?(role==='Paciente'?<Home onMessage={()=>openMessage('laura')} onProcess={()=>setTab('Proceso')} onTeam={()=>setTab('Equipo')}/>:<ProfessionalHome role={role} onMessages={()=>setTab('Mensajes')}/>):tab==='Pacientes'?<PatientsPanel/>:tab==='Proceso'?<Process/>:tab==='Equipo'?<Team onMessage={openMessage}/>:tab==='Mensajes'?<Messages key={selectedChat} initialChat={selectedChat}/>:<Profile role={role} onLogout={onLogout}/>}</div></section>
-    <nav className="mobile-nav">{visibleTabs.map(item=><button className={tab===item.name?'active':''} onClick={()=>setTab(item.name)} key={item.name}><span>{item.icon}</span>{item.name}</button>)}</nav>
+  return <main className="dashboard"><aside className="sidebar"><Mark compact/><nav>{visibleTabs.map(item=><button className={tab===item.name?'active':''} onClick={()=>setTab(item.name)} key={item.name}><span>{item.icon}</span>{item.label}{item.name==='Mensajes'&&!freshProfile&&<i>2</i>}</button>)}</nav>{!freshProfile&&<div className="support"><span>♡</span><strong>{role==='Paciente'?'¿Necesitas apoyo?':'Comunicación segura'}</strong><p>{role==='Paciente'?'Tu equipo está disponible.':'Tienes 2 mensajes pendientes.'}</p><button onClick={()=>setTab('Mensajes')}>Contactar</button></div>}<button className="side-profile" onClick={()=>setTab('Perfil')}><div className="avatar">{identity.initial}</div><span><strong>{identity.name}</strong><small>{role}</small></span><b>•••</b></button></aside>
+    <section className="main"><header className="topbar"><div className="mobile-logo"><Mark compact/></div><label className="role-switch"><span>Perfil</span><select value={role} disabled><option>{role}</option></select></label><div className="notification-center">{!freshProfile&&<><button className="alert" aria-label="Abrir notificaciones" aria-expanded={notificationsOpen} onClick={()=>setNotificationsOpen(!notificationsOpen)}>♧{!notificationsRead&&<i></i>}</button>{notificationsOpen&&<section className="notification-panel"><header><div><p className="eyebrow">ACTUALIZACIONES</p><h2>Notificaciones</h2></div><button onClick={()=>setNotificationsOpen(false)} aria-label="Cerrar notificaciones">×</button></header></section>}</>}</div><button className="logout-mini" onClick={onLogout}>Salir</button></header><div className="view">{freshProfile&&role==='Paciente'?<FreshPatientView tab={tab} name={profileName}/>:tab==='Inicio'?(role==='Paciente'?<Home onMessage={()=>openMessage('laura')} onProcess={()=>setTab('Proceso')} onTeam={()=>setTab('Equipo')}/>:<ProfessionalHome role={role} onMessages={()=>setTab('Mensajes')}/>):tab==='Pacientes'?<PatientsPanel/>:tab==='Seguimiento'?<ProfessionalWorkspace role={role} section="Seguimiento"/>:tab==='Recursos'?<ProfessionalWorkspace role={role} section="Recursos"/>:tab==='Proceso'?<Process/>:tab==='Equipo'?<Team onMessage={openMessage}/>:tab==='Mensajes'?<Messages key={selectedChat} initialChat={selectedChat}/>:<Profile role={role} onLogout={onLogout}/>}</div></section>
+    <nav className="mobile-nav">{visibleTabs.map(item=><button className={tab===item.name?'active':''} onClick={()=>setTab(item.name)} key={item.name}><span>{item.icon}</span>{item.label}</button>)}</nav>
   </main>;
 }
 
