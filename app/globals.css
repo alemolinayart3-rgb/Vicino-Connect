@@ -151,3 +151,23 @@ input[type="date"]::-webkit-datetime-edit-day-field:focus,input[type="date"]::-w
 .professional-agenda .new-appointment>.primary{min-height:48px;border-radius:11px}
 @media(max-width:980px){.professional-agenda .agenda-main-grid{grid-template-columns:1fr}.professional-agenda .agenda-month .days button{width:40px;height:40px}}
 @media(max-width:520px){.professional-agenda .agenda-month{padding:22px 14px}.professional-agenda .weekdays,.professional-agenda .agenda-month .days{gap:4px}.professional-agenda .agenda-month .days button{width:34px;height:34px}.professional-agenda .new-appointment{padding:22px}}
+
+/* Comprobantes de cita para profesional y paciente. */
+.appointment-confirmation-backdrop{z-index:90;background:rgba(43,47,51,.5);backdrop-filter:blur(7px)}
+.appointment-confirmation{width:min(560px,100%);padding:42px;text-align:center;border-top:4px solid var(--sage);box-shadow:0 28px 70px rgba(43,47,51,.22)}
+.confirmation-mark{display:grid;place-items:center;width:64px;height:64px;margin:0 auto 20px;border-radius:50%;background:var(--sage-pale);color:var(--sage-dark);font-size:1.65rem;font-weight:800}
+.appointment-confirmation h2{font-size:1.75rem;margin:9px 0 10px}
+.confirmation-copy{max-width:430px;margin:0 auto 24px;color:var(--muted);line-height:1.6}
+.confirmation-summary{display:grid;grid-template-columns:1fr 1fr;gap:1px;margin:24px 0;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden;text-align:left}
+.confirmation-summary span{display:grid;gap:5px;padding:16px 18px;background:#fff}
+.confirmation-summary small{color:var(--muted);font-size:.72rem}
+.confirmation-summary strong{font-size:.9rem}
+.appointment-confirmation>.primary{width:100%;min-height:46px}
+.patient-appointments{padding:26px;margin-bottom:22px}
+.patient-appointments>.section-title>span{padding:6px 10px;border-radius:999px;background:var(--sage-pale);color:var(--sage-dark)}
+.patient-appointments article{display:grid;grid-template-columns:auto minmax(180px,1fr) auto;align-items:center;gap:16px;padding:16px 0;border-top:1px solid var(--line)}
+.patient-appointments article>div:nth-child(2){display:grid;gap:4px}.patient-appointments article p,.patient-appointments article small{margin:0;color:var(--muted)}
+.appointment-date{display:grid;place-items:center;width:54px;height:58px;border-radius:13px;background:var(--sage-pale);color:var(--sage-dark)}
+.appointment-date strong{font:700 1.25rem Sora}.appointment-date small{font-size:.65rem!important;color:var(--sage-dark)!important}
+.patient-appointments article>i{font-style:normal;padding:8px 12px;border-radius:999px;background:var(--blue-pale);color:var(--blue);font-size:.75rem;font-weight:700}
+@media(max-width:600px){.appointment-confirmation{padding:34px 20px}.confirmation-summary{grid-template-columns:1fr}.patient-appointments{padding:20px 16px}.patient-appointments article{grid-template-columns:auto 1fr}.patient-appointments article>button,.patient-appointments article>i{grid-column:2;width:100%}}
