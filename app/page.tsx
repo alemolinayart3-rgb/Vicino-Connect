@@ -169,6 +169,14 @@ function Login({ onNext }: { onNext: (role: Role, isNewAccount?: boolean) => voi
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [returnTo, setReturnTo] = useState('');
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const requestedEmail = params.get('email');
+    const requestedNext = params.get('next');
+    if (requestedEmail) setEmail(requestedEmail);
+    if (requestedNext?.startsWith('/') && !requestedNext.startsWith('//')) setReturnTo(requestedNext);
+  }, []);
   const selectRole = (nextRole: Role) => { setRole(nextRole); setEmail(demoEmails[nextRole]); };
   const authenticate = async (createAccount = false) => {
     setMessage('');
@@ -195,7 +203,7 @@ function Login({ onNext }: { onNext: (role: Role, isNewAccount?: boolean) => voi
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error || !data.user) {
       setLoading(false);
-      setMessage(error?.message || 'No fue posible iniciar sesión.');
+      setMessage(error?.message === 'Invalid login credentials' ? 'Correo o contraseña incorrectos. Si tu cuenta nació desde una invitación, usa “Olvidé mi contraseña”.' : error?.message || 'No fue posible iniciar sesión.');
       return;
     }
     const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single();
@@ -209,7 +217,25 @@ function Login({ onNext }: { onNext: (role: Role, isNewAccount?: boolean) => voi
       return;
     }
     setLoading(false);
+    if (returnTo) {
+      window.location.assign(returnTo);
+      return;
+    }
     onNext(actualRole, false);
+  };
+  const resetPassword = async () => {
+    setMessage('');
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      setMessage('Escribe primero el correo de tu cuenta.');
+      return;
+    }
+    setLoading(true);
+    const supabase = createClient();
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/callback?next=/restablecer-contrasena`,
+    });
+    setLoading(false);
+    setMessage(error ? 'No pudimos enviar el enlace. Inténtalo nuevamente en unos minutos.' : 'Te enviamos un enlace para crear una nueva contraseña. Revisa también la carpeta de spam.');
   };
   return (
     <main className="auth-shell">
@@ -235,7 +261,7 @@ function Login({ onNext }: { onNext: (role: Role, isNewAccount?: boolean) => voi
           </div>
           <label>Correo electrónico<input value={email} onChange={e=>setEmail(e.target.value)} type="email" /></label>
           <label>Contraseña<div className="password"><input value={password} onChange={e=>setPassword(e.target.value)} type="password" /><span>○</span></div></label>
-          <div className="login-meta"><label className="remember"><input type="checkbox" defaultChecked /> Recordarme</label><button>Olvidé mi contraseña</button></div>
+          <div className="login-meta"><label className="remember"><input type="checkbox" defaultChecked /> Recordarme</label><button disabled={loading} onClick={resetPassword}>Olvidé mi contraseña</button></div>
           {message && <p className="auth-message" role="status">{message}</p>}
           <button className="primary" disabled={loading} onClick={() => authenticate(false)}>{loading ? 'Ingresando…' : 'Continuar'} <span>→</span></button>
           <p className="signup">¿Es tu primera vez? <button disabled={loading} onClick={() => authenticate(true)}>Crear una cuenta</button></p>
